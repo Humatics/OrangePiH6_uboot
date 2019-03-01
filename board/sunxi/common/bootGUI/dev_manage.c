@@ -185,7 +185,7 @@ int disp_devices_open(void)
 				output_dev->format = (output_dev->type == DISP_OUTPUT_TYPE_LCD) ?
 						DISP_CSC_TYPE_RGB : DISP_CSC_TYPE_YUV444;
 				output_dev->bits = DISP_DATA_8BITS;
-				output_dev->bits = DISP_EOTF_GAMMA22;
+				output_dev->eotf = DISP_EOTF_GAMMA22;
 				output_dev->cs = DISP_BT709;
 			}
 
