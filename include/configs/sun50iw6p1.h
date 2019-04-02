@@ -350,7 +350,7 @@
 	"scriptboot=source ${load_addr}\0" \
 	"set_cmdline=" \
                 "setenv bootargs console=${console} ${optargs} " \
-                "earlyprintk=sunxi-uart,0x05000000 mac_addr=${ethaddr} " \
+                "earlyprintk=sunxi-uart,0x05000000  " \
                 "root=${root} ro " \
 		"rootwait\0" \
 	"mmcbootcmd=" \
