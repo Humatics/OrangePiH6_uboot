@@ -104,8 +104,6 @@ int nand_init_for_sprite(int workmode)
 	sunxi_secstorage_read_pt  = nand_secure_storage_read;
 	sunxi_secstorage_write_pt = nand_secure_storage_write;
 
-	debug("sunxi sprite has installed nand function\n");
-	uboot_spare_head.boot_data.storage_type = 0;
 	if(workmode == 0x30)
 	{
 		if(sunxi_sprite_init(1))
@@ -114,7 +112,7 @@ int nand_init_for_sprite(int workmode)
 			return -1;
 		}
 	}
-	uboot_spare_head.boot_data.storage_type = 0;
+	set_boot_storage_type(STORAGE_NAND);
 	return 0;
 }
 

@@ -31,6 +31,7 @@
 #include <sys_config_old.h>
 #include <power/sunxi/axp.h>
 #include <fdt_support.h>
+#include <private_uboot.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -49,6 +50,15 @@ static ulong pmu_nodeoffset_in_config = 0;
 	#define CHARGER_PMU 0
 #endif
 
+void sunxi_axp_dummy_init(void)
+{
+	int i = 0;
+    printf("probe axp is dummy\n");
+    memset(sunxi_axp_dev, 0, SUNXI_AXP_DEV_MAX * 4);
+    for (i = 0; i < SUNXI_AXP_DEV_MAX; i++) {
+        sunxi_axp_dev[i] = &sunxi_axp_null;
+    }
+}
 
 int axp_probe(void)
 {
@@ -79,7 +89,7 @@ int axp_reinit(void)
 			sunxi_axp_dev[i] = (sunxi_axp_dev_t *)((ulong)sunxi_axp_dev[i] + gd->reloc_off);
 		}
 	}
-
+	//pmu_nodeoffset = fdt_path_offset(working_fdt,PMU_SCRIPT_NAME);
 	pmu_nodeoffset_in_config = script_parser_offset(PMU_SCRIPT_NAME);
 	if(pmu_nodeoffset_in_config == 0)
 	{
@@ -106,6 +116,7 @@ int axp_probe_factory_mode(void)
 	int poweron_reason;
 
 	buffer_value = sunxi_axp_dev[0]->probe_pre_sys_mode();
+
 	if(buffer_value == PMU_PRE_FACTORY_MODE)	//factory mode: need the power key and dc or vbus
 	{
 		printf("factory mode detect\n");
@@ -155,7 +166,7 @@ int axp_set_hardware_poweroff_vol(void)
 {
 	int vol_value = 0;
 
-	if(script_parser_fetch_by_offset(pmu_nodeoffset_in_config, "pmu_pwroff_vol", (uint32_t*)&vol_value)<0)
+	if(script_parser_fetch_by_offset(pmu_nodeoffset_in_config,"pmu_pwroff_vol", (uint32_t*)&vol_value)<0)
 	{
 		puts("set power off vol to default\n");
 	}
@@ -165,7 +176,7 @@ int axp_set_hardware_poweroff_vol(void)
 
 int  axp_set_power_off(void)
 {
-	return sunxi_axp_dev[CHARGER_PMU]->set_power_off();
+	return sunxi_axp_dev[0]->set_power_off();
 }
 
 int axp_set_next_poweron_status(int value)
@@ -204,6 +215,20 @@ int  axp_probe_battery_vol(void)
 	return sunxi_axp_dev[CHARGER_PMU]->probe_battery_vol();
 }
 
+#ifdef CONFIG_SUN8IW12P1_NOR
+int  axp_probe_battery_ocv_vol(void)
+{
+	return sunxi_axp_dev[CHARGER_PMU]->probe_battery_ocv_vol();
+}
+
+int  axp_set_led_control(int value)
+{
+	return sunxi_axp_dev[CHARGER_PMU]->set_led_control(value);
+}
+
+#endif
+
+
 int  axp_probe_rest_battery_capacity(void)
 {
 	return sunxi_axp_dev[CHARGER_PMU]->probe_battery_ratio();
@@ -231,6 +256,10 @@ int  axp_set_charge_control(void)
 
 int axp_set_vbus_limit_dc(void)
 {
+	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,
+		"pmu_ac_vol", (uint32_t *)&gd->limit_vol);
+	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,
+		"pmu_ac_cur", (uint32_t *)&gd->limit_cur);
 	sunxi_axp_dev[0]->set_vbus_vol_limit(gd->limit_vol);
 	sunxi_axp_dev[0]->set_vbus_cur_limit(gd->limit_cur);
 	return 0;
@@ -238,6 +267,10 @@ int axp_set_vbus_limit_dc(void)
 
 int axp_set_vbus_limit_pc(void)
 {
+	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,
+		"pmu_usbpc_vol", (uint32_t *)&gd->limit_pcvol);
+	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,
+		"pmu_usbpc_cur", (uint32_t *)&gd->limit_pccur);
 	sunxi_axp_dev[0]->set_vbus_vol_limit(gd->limit_pcvol);
 	sunxi_axp_dev[0]->set_vbus_cur_limit(gd->limit_pccur);
 	return 0;
@@ -245,22 +278,8 @@ int axp_set_vbus_limit_pc(void)
 
 int axp_set_all_limit(void)
 {
-	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,"pmu_ac_vol", (uint32_t*)&gd->limit_vol);
-	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,"pmu_ac_cur", (uint32_t*)&gd->limit_cur);
-	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,"pmu_usbpc_vol", (uint32_t*)&gd->limit_pcvol);
-	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,"pmu_usbpc_cur", (uint32_t*)&gd->limit_pccur);
 
-	if(SUNXI_VBUS_PC == gd->vbus_status)
-	{
-		axp_set_vbus_limit_pc();
-	}
-	else if(SUNXI_VBUS_DC == gd->vbus_status)
-	{
-		axp_set_vbus_limit_dc();
-	}
-	else
-	{
-	}
+	axp_set_vbus_limit_dc();
 
 	return 0;
 }
@@ -336,6 +355,7 @@ int axp_set_power_supply_output(void)
 			if(sunxi_axp_dev[0]->set_supply_status_byname(power_name, power_vol_d, onoff))
 			{
 				printf("axp set %s to %d failed\n", power_name, power_vol_d);
+				return -1;
 			}
 	}while(1);
 
@@ -702,10 +722,15 @@ static const struct sunxi_bias_set gpio_bias_tlb[] = {
 	SUNXI_PIO_BIAS("pa_bias", 0),
 	SUNXI_PIO_BIAS("pc_bias", 2),
 	SUNXI_PIO_BIAS("pd_bias", 3),
+	SUNXI_PIO_BIAS("pe_bias", 4),
+	SUNXI_PIO_BIAS("pf_bias", 5),
 	SUNXI_PIO_BIAS("pg_bias", 6),
-
+	SUNXI_PIO_BIAS("pi_bias", 8),
+	SUNXI_PIO_BIAS("pj_bias", 9),
+	SUNXI_PIO_BIAS("vcc_bias", 12),
 	SUNXI_R_PIO_BIAS("pl_bias", 0),
 	SUNXI_R_PIO_BIAS("pm_bias", 1),
+	SUNXI_R_PIO_BIAS("r_vcc_bias", 12),
 };
 
 static char* __parse_axp_name(char *gpio_bias, int *offset)
@@ -769,10 +794,12 @@ int set_sunxi_gpio_power_bias(void)
 {
 	char gpio_bias[GPIO_BIAS_MAX_LEN], gpio_name[GPIO_BIAS_MAX_LEN];
 	char *axp=NULL, *supply=NULL, *vol=NULL;
-	u32 bias_vol_set,port_index;
+	u32 bias_vol_set;
+	int port_index, supply_set;
 	int  index1 = 0,index2 = 0,offset = 0;
 
 	do {
+		offset = 0;
 		memset(gpio_bias, 0, GPIO_BIAS_MAX_LEN);
 		memset(gpio_name, 0, GPIO_BIAS_MAX_LEN);
 
@@ -786,15 +813,31 @@ int set_sunxi_gpio_power_bias(void)
 				break;
 			}
 
-			axp = __parse_axp_name(gpio_bias, &offset);
-			supply = __parse_supply_name(gpio_bias, &offset);
-			bias_vol_set = __parse_setting_vol(vol, gpio_bias, &offset);
-			printf("axp=%s, supply=%s, vol=%d \n", axp, supply, bias_vol_set);
-			__pio_power_mode_select(bias_vol_set,port_index);
-			if (axp_set_supply_status_byname(axp, supply,
-			               bias_vol_set, 1) < 0)
-				printf("pmu set fail!\n");
-		} while(1);
+		axp = __parse_axp_name(gpio_bias, &offset);
+		supply = __parse_supply_name(gpio_bias, &offset);
+		bias_vol_set = __parse_setting_vol(vol, gpio_bias, &offset);
+		supply_set = 0;
+		if (bias_vol_set > 10000) {
+			supply_set = 1;
+			bias_vol_set = bias_vol_set%10000;
+		} else if (bias_vol_set >= 0) {
+			supply_set = 0;
+
+		}
+		printf("set %s(%d) bias:%d\n", gpio_name,
+					port_index, bias_vol_set);
+		__pio_power_mode_select(bias_vol_set, port_index);
+
+		if (uboot_spare_head.boot_ext[0].data[0]) {
+			if (supply_set) {
+			    printf("axp=%s, supply=%s, vol=%d\n", axp,
+				    supply, bias_vol_set);
+			    if (axp_set_supply_status_byname(axp, supply,
+					    bias_vol_set, 1) < 0)
+					    printf("pmu set fail!\n");
+			}
+		}
+	} while(1);
 
 		return 0;
 }

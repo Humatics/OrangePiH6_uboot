@@ -13,6 +13,7 @@
 
 #include "hdmitx_dev.h"
 #include "core/video.h"
+#include "core/fc_video.h"
 #include "identification.h"
 #include "log.h"
 #include "access.h"

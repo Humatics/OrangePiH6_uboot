@@ -28,6 +28,7 @@
 
 extern const boot0_file_head_t  BT0_head;
 
+
 void update_flash_para(void)
 {
 	struct spare_boot_head_t  *bfh = (struct spare_boot_head_t *) CONFIG_SYS_TEXT_BASE;
@@ -57,13 +58,17 @@ int load_boot1_from_spinor(void)
 	int start_sector = UBOOT_START_SECTOR_IN_SPINOR;
 	uint total_size = 0;
 
-	if(spinor_init(0))
+       if (spinor_init(0))
 	{
 		printf("spinor init fail\n");
 		return -1;
 	}
 
+#ifdef CONFIG_ARCH_SUN8IW12P1
+	if(boot0_spinor_sector_read(start_sector, 1, (void *)tmp_buff ) )
+#else
 	if(spinor_read(start_sector, 1, (void *)tmp_buff ) )
+#endif
 	{
 		printf("the first data is error\n");
 		goto __load_boot1_from_spinor_fail;
@@ -79,16 +84,22 @@ int load_boot1_from_spinor(void)
 	total_size = toc1_head->valid_len;
 	printf("The size of toc is %x.\n", total_size );
 
+#ifdef CONFIG_ARCH_SUN8IW12P1
+	if(boot0_spinor_sector_read(start_sector, total_size/512, (void *)tmp_buff ))
+#else
 	if(spinor_read(start_sector, total_size/512, (void *)tmp_buff ))
+#endif
 	{
 		printf("spinor read data error\n");
 		goto __load_boot1_from_spinor_fail;
 	}
 
+	spinor_exit(0);
 	return 0;
 
 __load_boot1_from_spinor_fail:
 
+	spinor_exit(0);
 	return -1;
 }
 

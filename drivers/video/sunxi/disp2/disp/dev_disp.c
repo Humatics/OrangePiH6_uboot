@@ -278,9 +278,20 @@ static s32 drv_disp_check_spec(void)
 }
 
 extern __s32 hdmi_init(void);
+extern s32 hdmi_deinit(void);
 extern int tv_ac200_init(void);
 extern void disp_fdt_init(void);
 extern int hal_get_hpd_state(int sel, int type);
+
+__weak s32 tv_init(void)
+{
+	return 0;
+}
+
+__weak int tv_ac200_init(void)
+{
+	return 0;
+}
 
 s32 drv_disp_init(void)
 {
@@ -333,13 +344,16 @@ s32 drv_disp_init(void)
 	}
 
 #if defined(SUPPORT_DSI)
-	para->reg_base[DISP_MOD_DSI0] = disp_getprop_regbase(FDT_DISP_PATH, "reg", counter);
-	if (!para->reg_base[DISP_MOD_DSI0]) {
-		__wrn("unable to map dsi registers\n");
-		ret = -EINVAL;
-		goto exit;
+	for (i = 0; i < DEVICE_DSI_NUM; ++i) {
+		para->reg_base[DISP_MOD_DSI0 + i] =
+		    disp_getprop_regbase(FDT_DISP_PATH, "reg", counter);
+		if (!para->reg_base[DISP_MOD_DSI0 + i]) {
+			__wrn("unable to map dsi%d registers\n", i);
+			ret = -EINVAL;
+			goto exit;
+		}
+		++counter;
 	}
-	counter ++;
 #endif
 
 	/* parse and map irq */
@@ -354,11 +368,13 @@ s32 drv_disp_init(void)
 	}
 
 #if defined(SUPPORT_DSI)
-	para->irq_no[DISP_MOD_DSI0] = disp_getprop_irq(FDT_DISP_PATH, "interrupts", counter);
-	if (!para->irq_no[DISP_MOD_DSI0]) {
-		__wrn("irq_of_parse_and_map irq %d fail for dsi\n", counter);
+	for (i = 0; i < DEVICE_DSI_NUM; ++i) {
+		para->irq_no[DISP_MOD_DSI0 + i] =
+		    disp_getprop_irq(FDT_DISP_PATH, "interrupts", counter);
+		if (!para->irq_no[DISP_MOD_DSI0 + i])
+			__wrn("irq_of_parse_and_map irq %d fail for dsi\n", i);
+		counter++;
 	}
-	counter ++;
 #endif
 
 	node_offset = disp_fdt_nodeoffset("disp");
@@ -400,11 +416,13 @@ s32 drv_disp_init(void)
 #endif
 
 #if defined(SUPPORT_DSI)
-	para->mclk[DISP_MOD_DSI0] = of_clk_get(node_offset, counter);
-	if (IS_ERR(para->mclk[DISP_MOD_DSI0])) {
-		__wrn("fail to get clk for dsi\n");
+	for (i = 0; i < CLK_DSI_NUM; ++i) {
+		para->mclk[DISP_MOD_DSI0 + i] =
+		    of_clk_get(node_offset, counter);
+		if (IS_ERR(para->mclk[DISP_MOD_DSI0 + i]))
+			__wrn("fail to get clk %d for dsi\n", i);
+		counter++;
 	}
-	counter ++;
 #endif
 
 #if defined(SUPPORT_EINK)
@@ -464,25 +482,26 @@ s32 drv_disp_init(void)
 		g_disp_drv.mgr[disp] = disp_get_layer_manager(disp);
 	}
 	lcd_init();
-#if defined(SUPPORT_HDMI)
+#if defined(SUPPORT_HDMI) && defined(CONFIG_SUNXI_MODULE_HDMI)
 	hdmi_init();
 #endif
-#if defined(SUPPORT_TV)
+#if defined(SUPPORT_TV) && defined(CONFIG_SUNXI_MODULE_TV)
 	tv_init();
 #endif
+
+	g_disp_drv.inited = true;
 
 #if defined(CONFIG_USE_AC200)
 #ifdef CONFIG_SUNXI_HDMI_IN_BOOT0
 	if (!hal_get_hpd_state(0, DISP_OUTPUT_TYPE_HDMI))
 #endif
 	{
+		hdmi_deinit();
 		tv_ac200_init();
 	}
 #endif
 
 	bsp_disp_open();
-
-	g_disp_drv.inited = true;
 
 	printf("%s finish\n", __func__);
 
@@ -521,9 +540,13 @@ int sunxi_disp_get_source_ops(struct sunxi_disp_source_ops *src_ops)
 	src_ops->sunxi_lcd_gpio_set_value = bsp_disp_lcd_gpio_set_value;
 	src_ops->sunxi_lcd_gpio_set_direction = bsp_disp_lcd_gpio_set_direction;
 #ifdef SUPPORT_DSI
-	src_ops->sunxi_lcd_dsi_dcs_write = dsi_dcs_wr;
-	src_ops->sunxi_lcd_dsi_gen_write = dsi_gen_wr;
-	src_ops->sunxi_lcd_dsi_clk_enable = dsi_clk_enable;
+	src_ops->sunxi_lcd_dsi_dcs_write = bsp_disp_lcd_dsi_dcs_wr;
+	src_ops->sunxi_lcd_dsi_gen_write = bsp_disp_lcd_dsi_gen_wr;
+	src_ops->sunxi_lcd_dsi_clk_enable = bsp_disp_lcd_dsi_clk_enable;
+	src_ops->sunxi_lcd_dsi_mode_switch = bsp_disp_lcd_dsi_mode_switch;
+	src_ops->sunxi_lcd_dsi_gen_short_read = bsp_disp_lcd_dsi_gen_short_read;
+	src_ops->sunxi_lcd_dsi_dcs_read = bsp_disp_lcd_dsi_dcs_read;
+	src_ops->sunxi_lcd_dsi_set_max_ret_size = bsp_disp_lcd_set_max_ret_size;
 #endif
 	src_ops->sunxi_lcd_cpu_write = tcon0_cpu_wr_16b;
 	src_ops->sunxi_lcd_cpu_write_data = tcon0_cpu_wr_16b_data;
@@ -920,11 +943,6 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = bsp_disp_hdmi_check_support_mode(ubuffer[0], ubuffer[1]);
 		break;
 	}
-	case DISP_HDMI_GET_EDID:
-	{
-		ret = bsp_disp_hdmi_get_edid(ubuffer[0], (uintptr_t*)ubuffer[1]);
-		break;
-	}
 
 	//---- tv ---
 	case DISP_SET_TV_HPD:
@@ -932,14 +950,13 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = bsp_disp_tv_set_hpd(ubuffer[0]);
 		break;
 	}
-#if defined(SUPPORT_TV) || defined(CONFIG_USE_AC200)
+#if defined (SUPPORT_TV) || defined(CONFIG_USE_AC200)
 	case DISP_TV_GET_HPD_STATUS:
 
 	if (DISPLAY_NORMAL == suspend_status)
 		ret = bsp_disp_tv_get_hpd_status(ubuffer[0]);
 	else
 		ret = 0;
-
 	break;
 #endif
 

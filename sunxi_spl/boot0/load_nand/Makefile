@@ -10,6 +10,7 @@ include $(SPLDIR)/config.mk
 LIB	:= $(obj)libloadnand.o
 
 COBJS-y += load_Boot1_from_nand.o
+COBJS-y += load_kernel_from_nand.o
 
 SRCS	:= $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS-y))

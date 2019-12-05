@@ -21,8 +21,10 @@ typedef struct core_pll_freq_tbl {
 
 static PLL_TABLE pll1_table[] =
 {	/*pll     N    M   P*/   /* pll = 24M*(N+1)/(M+1)/(P+1) */
-	{408 ,	  16 ,  0,  0},
+	{408,     16 ,  0,  0},
+	{888,     36 ,  0,  0},
 	{1008,    41 ,  0,  0},
+	{1080,    44 ,  0,  0},
 	{1320,    54 ,  0,  0},
 	{1440,    59 ,  0,  0},
 };
@@ -161,7 +163,7 @@ int sunxi_clock_get_apb1(void)
 	int factor_m = 0,factor_n = 0;
 
 	reg_val = readl(CCMU_APB1_CFG_GREG);
-	factor_m  = (reg_val >> 0) & 0x03;
+	factor_m  = ((reg_val >> 0) & 0x03) + 1;
 	factor_n  = 1<<((reg_val >> 8) & 0x03);
 	src = (reg_val >> 24)&0x3;
 

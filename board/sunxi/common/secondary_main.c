@@ -303,8 +303,8 @@ int sunxi_secendary_cpu_task(void)
 		set_decode_buffer( (unsigned char *)(SUNXI_ANDROID_CHARGE_COMPRESSED_LOGO_BUFF));
 	} else if (next_mode == SUNXI_STATE_SHUTDOWN_DIRECTLY) {
 		gd->need_shutdown = 1;
-		set_decode_buffer(NULL);
-		goto __secondary_cpu_end;
+		set_decode_buffer((unsigned char *)
+			(SUNXI_SHUTDOWN_CHARGE_COMPRESSED_LOGO_BUFF));
 	}
 	set_cpu2_state(CPU_WORK);
 	enable_interrupts();
@@ -361,7 +361,9 @@ int sunxi_secendary_cpu_task(void)
 	/* wait bmp show on screen */
 	mdelay(50);
 #endif
-__secondary_cpu_end:
+	/* show low power logo */
+	if (gd->need_shutdown)
+		mdelay(3000);
 
 	pr_msg("cpu %d enter wfi mode\n", get_core_pos());
 	disable_interrupts();

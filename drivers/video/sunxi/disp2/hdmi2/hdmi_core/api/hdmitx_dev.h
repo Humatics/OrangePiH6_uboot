@@ -57,6 +57,8 @@ struct hdmi_tx_ctrl {
 	/** (@b user) Context status: closed (0), opened (<0) and
 	 *  configured (>0) */
 	u8 data_enable_polarity;
+	u8 hspol;
+	u8 vspol;
 
 	u32 pixel_clock;
 	u8 pixel_repetition;

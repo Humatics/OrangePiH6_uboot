@@ -196,15 +196,17 @@ int disp_al_manager_apply(unsigned int disp, struct disp_manager_data *data)
 	}
 
 	if (al_priv.output_type[al_priv.tcon_id[disp]] ==
-	    (u32) DISP_OUTPUT_TYPE_HDMI) {
+	    (u32)DISP_OUTPUT_TYPE_HDMI) {
 		/*
 		 * If yuv output(cs != 0), remap yuv plane to (v y u) sequency
 		 * else disable color remap function
 		 */
 		if (data->config.cs != 0)
-			tcon1_hdmi_color_remap(al_priv.tcon_id[disp], 1);
+			tcon1_hdmi_color_remap(al_priv.tcon_id[disp], 1,
+					       data->config.cs);
 		else
-			tcon1_hdmi_color_remap(al_priv.tcon_id[disp], 0);
+			tcon1_hdmi_color_remap(al_priv.tcon_id[disp], 0,
+					       data->config.cs);
 	}
 	de_update_clk_rate(data->config.de_freq);
 
@@ -321,7 +323,11 @@ static struct lcd_clk_info clk_tbl[] = {
 	{LCD_IF_HV, 6, 1, 1, 0},
 	{LCD_IF_CPU, 12, 1, 1, 0},
 	{LCD_IF_LVDS, 7, 1, 1, 0},
+#if defined(DSI_VERSION_40)
 	{LCD_IF_DSI, 4, 1, 4, 148500000},
+#else
+	{LCD_IF_DSI, 4, 1, 4, 0},
+#endif /*endif DSI_ */
 };
 
 /* lcd */
@@ -353,6 +359,7 @@ int disp_al_lcd_get_clk_info(u32 screen_id, struct lcd_clk_info *info,
 		}
 	}
 
+#if defined(DSI_VERSION_40)
 	if (panel->lcd_if == LCD_IF_DSI) {
 		u32 lane = panel->lcd_dsi_lane;
 		u32 bitwidth = 0;
@@ -373,10 +380,28 @@ int disp_al_lcd_get_clk_info(u32 screen_id, struct lcd_clk_info *info,
 		}
 
 		dsi_div = bitwidth / lane;
+		if (panel->lcd_dsi_if == LCD_DSI_IF_COMMAND_MODE) {
+			tcon_div = dsi_div;
+		}
+	}
+#endif
+
+	if (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+	    panel->lcd_if == LCD_IF_DSI) {
+		tcon_div = tcon_div / 2;
+		dsi_div /= 2;
 	}
 
 	if (0 == find)
 		__wrn("cant find clk info for lcd_if %d\n", panel->lcd_if);
+
+#if defined(DSI_VERSION_28)
+	if (panel->lcd_if == LCD_IF_DSI &&
+		panel->lcd_dsi_if == LCD_DSI_IF_COMMAND_MODE) {
+		tcon_div = 6;
+		dsi_div = 6;
+	}
+#endif
 
 	info->tcon_div = tcon_div;
 	info->lcd_div = lcd_div;
@@ -415,8 +440,17 @@ int disp_al_lcd_cfg(u32 screen_id, disp_panel_para *panel,
 
 	if (LCD_IF_DSI == panel->lcd_if)	{
 #if defined(SUPPORT_DSI)
-		if (0 != dsi_cfg(screen_id, panel))
-			DE_WRN("dsi cfg fail!\n");
+		if (panel->lcd_if == LCD_IF_DSI) {
+			if (0 != dsi_cfg(screen_id, panel))
+				DE_WRN("dsi %d cfg fail!\n", screen_id);
+			if (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+			    screen_id + 1 < DEVICE_DSI_NUM) {
+				if (0 != dsi_cfg(screen_id + 1, panel))
+					DE_WRN("dsi %d cfg fail!\n",
+					       screen_id + 1);
+			}
+		}
+
 #endif
 	}
 #else
@@ -451,6 +485,9 @@ int disp_al_lcd_enable(u32 screen_id, disp_panel_para *panel)
 	} else if (LCD_IF_DSI == panel->lcd_if) {
 #if defined(SUPPORT_DSI)
 		dsi_open(screen_id, panel);
+		if (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+		    screen_id + 1 < DEVICE_DSI_NUM)
+			dsi_open(screen_id + 1, panel);
 #endif
 	}
 
@@ -476,6 +513,10 @@ int disp_al_lcd_disable(u32 screen_id, disp_panel_para *panel)
 	} else if (LCD_IF_DSI == panel->lcd_if) {
 #if defined(SUPPORT_DSI)
 		dsi_close(screen_id);
+		if (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+		    screen_id + 1 < DEVICE_DSI_NUM)
+			dsi_close(screen_id + 1);
+
 #endif
 	}
 	tcon0_close(screen_id);
@@ -576,7 +617,7 @@ int disp_al_lcd_tri_busy(u32 screen_id, disp_panel_para *panel)
 /* take dsi irq s32o account, todo? */
 int disp_al_lcd_tri_start(u32 screen_id, disp_panel_para *panel)
 {
-#if defined(SUPPORT_DSI)
+#if defined(SUPPORT_DSI) && defined(DSI_VERSION_40)
 	if (LCD_IF_DSI == panel->lcd_if)
 		dsi_tri_start(screen_id);
 #endif
@@ -586,11 +627,18 @@ int disp_al_lcd_tri_start(u32 screen_id, disp_panel_para *panel)
 int disp_al_lcd_io_cfg(u32 screen_id, u32 enable, disp_panel_para *panel)
 {
 #if defined(SUPPORT_DSI)
-	if (LCD_IF_DSI == panel->lcd_if) {
-		if (enable)
+	if (panel->lcd_if == LCD_IF_DSI) {
+		if (enable == 1) {
 			dsi_io_open(screen_id, panel);
-		else
+			if (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+			    screen_id + 1 < DEVICE_DSI_NUM)
+				dsi_io_open(screen_id + 1, panel);
+		} else {
 			dsi_io_close(screen_id);
+			if (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+			    screen_id + 1 < DEVICE_DSI_NUM)
+				dsi_io_close(screen_id + 1);
+		}
 	}
 #endif
 
@@ -667,9 +715,11 @@ int disp_al_hdmi_cfg(u32 screen_id, struct disp_video_timings *video_info)
 	 * else disable color remap function
 	 */
 	if (al_priv.output_cs[screen_id] != 0)
-		tcon1_hdmi_color_remap(screen_id, 1);
+		tcon1_hdmi_color_remap(screen_id, 1,
+				       al_priv.output_cs[screen_id]);
 	else
-		tcon1_hdmi_color_remap(screen_id, 0);
+		tcon1_hdmi_color_remap(screen_id, 0,
+				       al_priv.output_cs[screen_id]);
 	tcon1_src_select(screen_id, LCD_SRC_DE, al_priv.de_id[screen_id]);
 
 	return 0;
@@ -933,7 +983,8 @@ int disp_init_al(disp_bsp_init_para *para)
 	tcon_top_set_reg_base(0, para->reg_base[DISP_MOD_DEVICE]);
 #endif
 #if defined(SUPPORT_DSI)
-	dsi_set_reg_base(0, para->reg_base[DISP_MOD_DSI0]);
+	for (i = 0; i < DEVICE_DSI_NUM; ++i)
+		dsi_set_reg_base(i, para->reg_base[DISP_MOD_DSI0 + i]);
 #endif
 
 	if (1 == para->boot_info.sync) {

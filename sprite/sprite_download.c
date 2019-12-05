@@ -708,7 +708,7 @@ int sunxi_mbr_convert_to_gpt(void *sunxi_mbr_buf, char *gpt_buf,int storage_type
 	/*1 GPT head + 32 GPT entry*/
 	gpt_head->last_usable_lba = total_sectors - (1 + 32) - 1;
 	memcpy(gpt_head->disk_guid.b,guid,16);
-	gpt_head->partition_entry_lba = PRIMARY_GPT_ENTRY_OFFSET;
+	gpt_head->partition_entry_lba = (storage_type == STORAGE_NAND) ? 2 : PRIMARY_GPT_ENTRY_OFFSET;
 	gpt_head->num_partition_entries = 0x80;
 	gpt_head->sizeof_partition_entry = GPT_ENTRY_SIZE;
 	gpt_head->partition_entry_array_crc32 = 0;

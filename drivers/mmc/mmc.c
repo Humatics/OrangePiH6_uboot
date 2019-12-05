@@ -32,11 +32,14 @@ static int cur_dev_num = -1;
 int mmc_send_ext_csd(struct mmc *mmc, char *ext_csd);
 int mmc_decode_ext_csd(struct mmc *mmc,struct mmc_ext_csd *dec_ext_csd, char *ext_csd);
 int mmc_do_switch(struct mmc *mmc, u8 set, u8 index, u8 value, u32 timeout);
+int mmc_user_scan_wp_sta(struct mmc *mmc);
 static void mmc_set_bus_width(struct mmc *mmc, uint width);
 
 extern int mmc_init_blk_ops(struct mmc *mmc);
 extern unsigned int mmc_mmc_update_timeout(struct mmc *mmc);
 extern char *spd_name[];
+
+extern int sunxi_mmc_ffu(struct mmc *mmc);
 
 LIST_HEAD(mmc_devices);
 
@@ -152,6 +155,8 @@ int mmc_send_status(struct mmc *mmc, int timeout)
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
 				MMCINFO("Status Error: 0x%08X\n",
 					cmd.response[0]);
+				if (cmd.response[0] & (0x1U<<26))
+					MMCINFO("26-write protect violation!!\n");
 #endif
 				return COMM_ERR;
 			}
@@ -698,6 +703,45 @@ int mmc_do_switch(struct mmc *mmc, u8 set, u8 index, u8 value, u32 timeout)
 
 	return 0;
 }
+
+#ifdef SUPPORT_SUNXI_MMC_FFU
+int mmc_switch_ffu(struct mmc *mmc, u8 set, u8 index, u8 value, u32 timeout, u8 check_status)
+{
+	struct mmc_cmd cmd;
+	int ret;
+
+	cmd.cmdidx = MMC_CMD_SWITCH;
+	cmd.resp_type = MMC_RSP_R1b;
+	cmd.cmdarg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+				 (index << 16) |
+				 (value << 8);
+	cmd.flags = 0;
+
+	ret = mmc_send_cmd(mmc, &cmd, NULL);
+	if (ret) {
+		MMCINFO("mmc switch failed\n");
+	}
+
+	mmc_set_ios(mmc);
+
+	ret = mmc_update_phase(mmc);
+	if (ret) {
+		MMCINFO("update clock failed after send switch cmd\n");
+		return ret;
+	}
+
+	/* Waiting for the ready status */
+	if (check_status) {
+		ret = mmc_send_status(mmc, timeout);
+		if (ret) {
+			MMCINFO("mmc swtich status error\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+#endif
 
 int mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value)
 {
@@ -1547,7 +1591,8 @@ static int mmc_startup(struct mmc *mmc)
 	ALLOC_CACHE_ALIGN_BUFFER(char, ext_csd, MMC_MAX_BLOCK_LEN);
 	int timeout = 1000;
 	int erase_gsz, erase_gmul;
-	int def_erase_grp_size, hc_erase_gpr_size;
+	int def_erase_grp_size, hc_erase_grp_size;
+	int def_wp_grp_size, hc_wp_grp_size;
 	int hc_erase_timeout;
 	// = {"DS26/SDR12", "HSSDR52/SDR25", "HSDDR52/DDR50", "HS200/SDR104", "HS400"};
 
@@ -1625,6 +1670,11 @@ static int mmc_startup(struct mmc *mmc)
 	mmc->csd[1] = cmd.response[1];
 	mmc->csd[2] = cmd.response[2];
 	mmc->csd[3] = cmd.response[3];
+
+	mmc->csd_perm_wp = ((mmc->csd[3]>>13) & 0x1); /*13*/
+	mmc->csd_wp_grp_size = ((mmc->csd[2]>>0) & 0x1F); /*36:32*/
+	/*MCINFO("CSD: %x %x %x %x\n", mmc->csd[0], mmc->csd[1], mmc->csd[2], mmc->csd[3]);*/
+
 
 	if (mmc->version == MMC_VERSION_UNKNOWN) {
 		int version = (cmd.response[0] >> 26) & 0xf;
@@ -1788,31 +1838,49 @@ static int mmc_startup(struct mmc *mmc)
 		erase_gmul = (mmc->csd[2] & 0x000003e0) >> 5;
 		def_erase_grp_size = (erase_gsz + 1) * (erase_gmul + 1);
 
-		hc_erase_gpr_size = ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] * MMC_MAX_BLOCK_LEN * 1024;
-		hc_erase_gpr_size = hc_erase_gpr_size / mmc->write_bl_len;
+		hc_erase_grp_size = ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] * MMC_MAX_BLOCK_LEN * 1024;
+		hc_erase_grp_size = hc_erase_grp_size / mmc->write_bl_len;
 
 		hc_erase_timeout = 300 * ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT];
 
-		if (ext_csd[EXT_CSD_ERASE_GROUP_DEF] && hc_erase_gpr_size && hc_erase_timeout)
-			mmc->erase_grp_size = hc_erase_gpr_size;
-		else
+		/*
+		* udpate write protect group size
+		*/
+		def_wp_grp_size = (mmc->csd_wp_grp_size+1) * def_erase_grp_size;
+		hc_wp_grp_size = ext_csd[EXT_CSD_HC_WP_GRP_SIZE] * hc_erase_grp_size;
+		MMCINFO("*****grp info %x %x %x %x\n", def_wp_grp_size, hc_wp_grp_size, def_erase_grp_size, hc_erase_grp_size);
+
+
+		if ((ext_csd[EXT_CSD_ERASE_GROUP_DEF] && hc_erase_grp_size && hc_erase_timeout)) {
+			mmc->erase_grp_size = hc_erase_grp_size;
+			mmc->wp_grp_size = hc_wp_grp_size;
+			MMCINFO("hc wp_grp_size %x\n", mmc->wp_grp_size);
+		} else {
 			mmc->erase_grp_size = def_erase_grp_size;
+			mmc->wp_grp_size = def_wp_grp_size;
+			MMCINFO("def wp_grp_size %x\n", mmc->wp_grp_size);
+		}
 
 		/*
 		 * Host needs to enable ERASE_GRP_DEF bit if device is
 		 * partitioned. This bit will be lost every time after a reset
 		 * or power off. This will affect erase size.
 		 */
-		if ((ext_csd[EXT_CSD_PARTITIONING_SUPPORT] & PART_SUPPORT) &&
-			(ext_csd[EXT_CSD_PARTITIONS_ATTRIBUTE] & PART_ENH_ATTRIB)) {
+		if (((ext_csd[EXT_CSD_PARTITIONING_SUPPORT] & PART_SUPPORT) &&
+			(ext_csd[EXT_CSD_PARTITIONS_ATTRIBUTE] & PART_ENH_ATTRIB))
+			 || (mmc->cfg->platform_caps.drv_hc_cap_unit_feature & DRV_PARA_ENABLE_EMMC_HC_CAP_UNIT)) {
 			err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
 				EXT_CSD_ERASE_GROUP_DEF, 1);
 
 			if (err)
 				return err;
 
-			mmc->erase_grp_size = hc_erase_gpr_size;
+			mmc->erase_grp_size = hc_erase_grp_size;
+			mmc->wp_grp_size = hc_wp_grp_size;
+			MMCINFO("hc wp_grp_size %x\n", mmc->wp_grp_size);
 		}
+		MMCINFO("wp_grp_size 0x%x\n", mmc->wp_grp_size);
+		MMCINFO("*****grp info %x %x %x %x\n", def_wp_grp_size, hc_wp_grp_size, def_erase_grp_size, hc_erase_grp_size);
 
 		mmc->secure_feature = ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT];
 		mmc->secure_removal_type = ext_csd[EXT_CSD_SECURE_REMOAL_TYPE];
@@ -1828,7 +1896,8 @@ static int mmc_startup(struct mmc *mmc)
 				mmc->boot_support = 1;
 				mmc->boot_bus_cond = ext_csd[EXT_CSD_BOOT_BUS_WIDTH];
 			} else {
-				MMCDBG("not PART_SUPPORT ext_csd[226] = %d\n",ext_csd[226]);
+				MMCDBG("not PART_SUPPORT ext_csd[226] = %d\n",
+					ext_csd[226]);
 			}
 
 			for (i = 0; i < 4; i++) {
@@ -2078,6 +2147,8 @@ static int mmc_startup(struct mmc *mmc)
 	if (!IS_SD(mmc)) {
 		//MMCINFO("boot capacity  : %lld KB\n", mmc->capacity_boot>>10);
 		//MMCINFO("rpmb capacity  : %lld KB\n", mmc->capacity_rpmb>>10);
+		MMCINFO("wp_grp_size: 0x%x sector\n", mmc->wp_grp_size);
+		mmc_user_scan_wp_sta(mmc);
 	}
 	MMCINFO("SD/MMC %d init OK!!!\n", mmc->cfg->host_no);
 	return 0;
@@ -2796,6 +2867,13 @@ int mmc_init_boot(struct mmc *mmc)
 		MMCINFO("%s: mmc int fail\n", __FUNCTION__);
 		return err;
 	}
+
+#ifdef SUPPORT_SUNXI_MMC_FFU
+	if ( sunxi_mmc_ffu(mmc) ) {
+		MMCINFO("%s, try to execute ffu flow fail\n",  __FUNCTION__);
+		return err;
+	}
+#endif
 
 	if ((work_mode == WORK_MODE_BOOT)
 		&& (mmc->cfg->platform_caps.sample_mode == AUTO_SAMPLE_MODE))

@@ -30,6 +30,11 @@
 
 #define  RTC_DATA_HOLD_REG_BASE        (SUNXI_RTC_BASE + 0x100)
 #define  RTC_DATA_HOLD_REG_FEL         (RTC_DATA_HOLD_REG_BASE + 0x8)
+#define  RTC_CRY_CFG  				   (SUNXI_RTC_BASE + 0x210)
+#define  RTC_CRY_REG  				   (SUNXI_RTC_BASE + 0x214)
+#define  RTC_CRY_EN  				   (SUNXI_RTC_BASE + 0x218)
+
+
 /*
 ************************************************************************************************************
 *
@@ -90,6 +95,22 @@ void rtc_region_clear_fel_flag(void)
 	while(flag != 0);
 }
 
-
+#define RTC_BARRIER() do{asm volatile("DSB"); asm volatile("ISB");} while(0);
+void rtc_region_ddr_scramble_en(int en, unsigned int key)
+{
+	if (en) {
+		writel(0x1689UL, RTC_CRY_CFG);
+		RTC_BARRIER();
+		writel(key, RTC_CRY_REG);
+		RTC_BARRIER();
+		writel(0x1689UL, RTC_CRY_CFG);
+		RTC_BARRIER();
+		writel(1, RTC_CRY_EN);
+	} else {
+		writel(0x1689UL, RTC_CRY_CFG);
+		RTC_BARRIER();
+		writel(0, RTC_CRY_EN);
+	}
+}
 
 

@@ -527,7 +527,7 @@ int of_pll_clk_config_setup(struct clk *child_clk, u32 parent_handle)
 
 	clk = clk_get(NULL, clk_name);
 	if (!clk) {
-		printf("%s: get clk is null\n", __func__);
+		printf("%s: get clk is null:%s\n", __func__, clk_name);
 		return -1;
 	}
 

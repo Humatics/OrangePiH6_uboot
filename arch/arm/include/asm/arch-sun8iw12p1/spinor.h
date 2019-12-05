@@ -72,6 +72,6 @@ extern int spinor_sprite_write(uint start, uint nblock, void *buffer);
 extern int spinor_datafinish(void);
 extern s32 spi_nor_rw_test(u32 spi_no);
 extern u32 try_spi_nor(u32 spino);
-
+extern int boot0_spinor_sector_read(uint start, uint sector_cnt, void *buf);
 
 #endif

@@ -10,6 +10,7 @@ include $(SPLDIR)/config.mk
 LIB	:= $(obj)libloadmmc.o
 
 COBJS-y += load_boot1_from_sdmmc.o
+COBJS-y += load_kernel_from_sdmmc.o
 
 SRCS	:= $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS-y))

@@ -262,7 +262,9 @@ static void edid_set_video_prefered(sink_edid_t *sink_cap, videoParams_t *pVideo
 		return;
 	}
 
-	if (pVideo->mDtd.mCode == 0x201) {
+	if ((pVideo->mDtd.mCode == 0x201)
+		|| (pVideo->mDtd.mCode == 0x202)
+		|| (pVideo->mDtd.mCode == 0x203)) {
 		pVideo->mCea_code = 0;
 		pVideo->mHdmi_code = 0;
 		return;
@@ -274,8 +276,8 @@ static void edid_set_video_prefered(sink_edid_t *sink_cap, videoParams_t *pVideo
 	}
 
 	if ((pVideo->mDtd.mCode == 0x80 + 19) ||
-					(pVideo->mDtd.mCode == 0x80 + 4) ||
-					(pVideo->mDtd.mCode == 0x80 + 32)) {
+		(pVideo->mDtd.mCode == 0x80 + 4) ||
+		(pVideo->mDtd.mCode == 0x80 + 32)) {
 		pVideo->mCea_code = 0;
 		pVideo->mHdmi_code = 0;
 		return;
@@ -340,13 +342,26 @@ static void edid_set_video_prefered(sink_edid_t *sink_cap, videoParams_t *pVideo
 		pVideo->mCea_code = 0;
 		pVideo->mHdmi_code = hdmi_vic;
 	} else {
-		core->mode.pProduct.mOUI = 0x000c03;
-		core->mode.pProduct.mVendorPayload[0] = 0x0;
-		core->mode.pProduct.mVendorPayload[1] = 0;
-		core->mode.pProduct.mVendorPayloadLength = 2;
+		if ((pVideo->mDtd.mCode == 96)
+			|| (pVideo->mDtd.mCode == 97)
+			|| (pVideo->mDtd.mCode == 101)
+			|| (pVideo->mDtd.mCode == 102)) {
+			core->mode.pProduct.mOUI = 0xc45dd8;
+			core->mode.pProduct.mVendorPayload[0] = 1;
+			core->mode.pProduct.mVendorPayload[1] = 0;
+			core->mode.pProduct.mVendorPayloadLength = 2;
 
-		pVideo->mCea_code = pVideo->mDtd.mCode;
-		pVideo->mHdmi_code = 0;
+			pVideo->mCea_code = pVideo->mDtd.mCode;
+			pVideo->mHdmi_code = 0;
+		} else {
+			core->mode.pProduct.mOUI = 0x000c03;
+			core->mode.pProduct.mVendorPayload[0] = 0;
+			core->mode.pProduct.mVendorPayload[1] = 0;
+			core->mode.pProduct.mVendorPayloadLength = 2;
+
+			pVideo->mCea_code = pVideo->mDtd.mCode;
+			pVideo->mHdmi_code = 0;
+		}
 	}
 
 #endif

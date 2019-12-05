@@ -49,6 +49,10 @@ static int check_update_key(int key_value);
 static void print_ota_test(void);
 #endif
 
+#ifdef BOOT0_JUMP_KERNEL
+static void boot0_jump_linux(void);
+#endif
+
 extern void disp_init(void);
 extern char boot0_hash_value[64];
 extern int debug_enable;
@@ -87,7 +91,27 @@ int __attribute__((weak)) probe_power_key(void)
 	return 0;
 }
 
+int __attribute__((weak)) pmu_init(u8 power_mode)
+{
+	return 0;
+}
 
+#define GPIO_REG_READ(reg)              readl((reg))
+#define GPIO_REG_WRITE(reg, value)      writel((value), (reg))
+
+#define PIO_REG_CFG(n, i)               ((volatile unsigned int *)( SUNXI_PIO_BASE + ((n)-1)*0x24 + ((i)<<2) + 0x00))
+#define PIO_REG_DLEVEL(n, i)            ((volatile unsigned int *)( SUNXI_PIO_BASE + ((n)-1)*0x24 + ((i)<<2) + 0x14))
+#define PIO_REG_PULL(n, i)              ((volatile unsigned int *)( SUNXI_PIO_BASE + ((n)-1)*0x24 + ((i)<<2) + 0x1C))
+#define PIO_REG_DATA(n)                   ((volatile unsigned int *)( SUNXI_PIO_BASE + ((n)-1)*0x24 + 0x10))
+
+#define PIO_REG_CFG_VALUE(n, i)          readl( SUNXI_PIO_BASE + ((n)-1)*0x24 + ((i)<<2) + 0x00)
+#define PIO_REG_DLEVEL_VALUE(n, i)       readl( SUNXI_PIO_BASE + ((n)-1)*0x24 + ((i)<<2) + 0x14)
+#define PIO_REG_PULL_VALUE(n, i)         readl( SUNXI_PIO_BASE + ((n)-1)*0x24 + ((i)<<2) + 0x1C)
+#define PIO_REG_DATA_VALUE(n)            readl( SUNXI_PIO_BASE + ((n)-1)*0x24 + 0x10)
+#define PIO_REG_BASE(n)                    ((volatile unsigned int *)(SUNXI_PIO_BASE +((n)-1)*24))
+
+
+extern  int common_mix(void* addr);
 /*******************************************************************************
 main:   body for c runtime
 *******************************************************************************/
@@ -106,6 +130,7 @@ void main( void )
 	sunxi_serial_init( BT0_head.prvt_head.uart_port, (void *)BT0_head.prvt_head.uart_ctrl, 6 );
 	pr_force("HELLO! BOOT0 is starting!\n");
 	pr_force("boot0 commit : %s \n",boot0_hash_value);
+	
 	uart_input_value = set_debugmode_flag();
 	sunxi_key_init();
 #ifdef	SUNXI_OTA_TEST
@@ -128,6 +153,15 @@ void main( void )
 #ifdef CONFIG_SUNXI_MULITCORE_BOOT
 	set_pll_voltage(CONFIG_SUNXI_CORE_VOL);
 #endif
+
+		//CONFIG_BOOT0_NOR macro in "boot0/main/Makefile" file
+		//this macro open only compile in boot0_spinor.bin
+#ifdef CONFIG_BOOT0_NOR
+#ifdef CONFIG_ARCH_SUN8IW12P1
+		checking_tcxo();
+#endif
+#endif
+
 	set_pll();
 	set_gpio_gate();
 
@@ -172,6 +206,9 @@ void main( void )
 #else
 	dram_size = init_DRAM(0, (void *)BT0_head.prvt_head.dram_para);
 #endif
+#ifdef CONFIG_ARCH_SUN8IW12P1
+	set_pll_ddr();
+#endif
 	if(dram_size)
 	{
 		printf("dram size =%d\n", dram_size);
@@ -185,6 +222,19 @@ void main( void )
 	handler_super_standby();
 
 	mmu_setup(dram_size);
+
+
+#ifdef CONFIG_ARCH_SUN8IW12P1
+    common_mix((void*)FC_ADDR);
+#endif
+
+#ifdef BOOT0_LOAD_KERNEL
+	status = load_kernel();
+	if(status != 0)
+	{
+		printf("load kernel Fail\n");
+	}
+#endif
 
 	//load boot1
 	status = load_boot1();
@@ -205,6 +255,9 @@ void main( void )
 
 	if( status == 0 )
 	{
+#ifdef BOOT0_JUMP_KERNEL
+		boot0_jump_linux();
+#endif
 		//update bootpackage size for uboot
 		update_uboot_info(dram_size);
 		//update flash para
@@ -240,6 +293,37 @@ __boot0_entry_err1:
 
 	boot0_jmp_other(FEL_BASE);
 }
+
+#ifdef BOOT0_JUMP_KERNEL
+
+typedef void (*Kernel_Entry)(int zero,int machine_id,void *fdt_addr);
+
+void enable_smp(void)
+{
+	//SMP status is controlled by bit 6 of the CP15 Aux Ctrl Reg
+	asm volatile("MRC     p15, 0, r0, c1, c0, 1");  // Read ACTLR
+	asm volatile("ORR     r0, r0, #0x040");         // Set bit 6
+	asm volatile("MCR     p15, 0, r0, c1, c0, 1");  // Write ACTLR
+}
+
+static void boot0_jump_linux(void)
+{
+	Kernel_Entry kernel_entry = NULL;
+	void *dtb = (void *)CONFIG_SUNXI_FDT_ADDR;
+
+	kernel_entry =(Kernel_Entry)(ulong)BOOT0_LOAD_KERNEL_ENTRY;
+
+	debug("Jump to Linux (%x)...,dtb (%x)\n",(unsigned int)kernel_entry,(unsigned int)dtb);
+
+	enable_smp();
+
+	pr_force("Starting kernel ...\n\n");
+	kernel_entry(0, 0, dtb);
+	printf("fail\n");
+}
+
+#endif
+
 
 /*
 ************************************************************************************************************

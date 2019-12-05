@@ -433,6 +433,115 @@ static const struct de_feat sun8iw11_de_features = {
 	.scale_line_buffer_ed = sun8iw11_de_scale_line_buffer_ed,
 };
 
+static const int sun8iw12_de_num_chns[] = {
+	/* DISP0 */
+	4,
+};
+
+static const int sun8iw12_de_num_vi_chns[] = {
+	/* DISP0 */
+	2,
+};
+
+static const int sun8iw12_de_num_layers[] = {
+	/* DISP0 CH0 */
+	4,
+	/* DISP0 CH1 */
+	4,
+	/* DISP0 CH2 */
+	4,
+	/* DISP0 CH3 */
+	4,
+};
+
+static const int sun8iw12_de_is_support_vep[] = {
+	/* DISP0 CH0 */
+	1,
+	/* DISP0 CH1 */
+	0,
+	/* DISP0 CH2 */
+	0,
+	/* DISP0 CH3 */
+	0,
+};
+
+static const int sun8iw12_de_is_support_smbl[] = {
+	/* CH0 */
+	1,
+};
+
+static const int sun8iw12_de_supported_output_types[] = {
+	/* tcon0 */
+	DE_OUTPUT_TYPE_LCD,
+	/* tcon1 */
+	DE_OUTPUT_TYPE_TV | DE_OUTPUT_TYPE_HDMI,
+
+};
+
+static const int sun8iw12_de_is_support_wb[] = {
+	/* DISP0 */
+	1,
+};
+
+static const int sun8iw12_de_is_support_scale[] = {
+	/* DISP0 CH0 */
+	1,
+	/* DISP0 CH1 */
+	1,
+	/* DISP0 CH2 */
+	1,
+	/* DISP0 CH3 */
+	1,
+};
+
+static const int sun8iw12_de_scale_line_buffer_yuv[] = {
+	/* DISP0 CH0 */
+	4096,
+	/* DISP0 CH1 */
+	2048,
+	/* DISP0 CH2 */
+	2048,
+	/* DISP0 CH3 */
+	2048,
+};
+
+static const int sun8iw12_de_scale_line_buffer_rgb[] = {
+	/* DISP0 CH0 */
+	4096,
+	/* DISP0 CH1 */
+	2048,
+	/* DISP0 CH2 */
+	2048,
+	/* DISP0 CH3 */
+	2048,
+};
+
+static const int sun8iw12_de_scale_line_buffer_ed[] = {
+	/* DISP0 CH0 */
+	4096,
+	/* DISP0 CH1 */
+	2048,
+	/* DISP0 CH2 */
+	2048,
+	/* DISP0 CH3 */
+	2048,
+};
+
+static const struct de_feat sun8iw12_de_features = {
+	.num_screens = DE_NUM,
+	.num_devices = DEVICE_NUM,
+	.num_chns = sun8iw12_de_num_chns,
+	.num_vi_chns = sun8iw12_de_num_vi_chns,
+	.num_layers = sun8iw12_de_num_layers,
+	.is_support_vep = sun8iw12_de_is_support_vep,
+	.is_support_smbl = sun8iw12_de_is_support_smbl,
+	.is_support_wb = sun8iw12_de_is_support_wb,
+	.supported_output_types = sun8iw12_de_supported_output_types,
+	.is_support_scale = sun8iw12_de_is_support_scale,
+	.scale_line_buffer_yuv = sun8iw12_de_scale_line_buffer_yuv,
+	.scale_line_buffer_rgb = sun8iw12_de_scale_line_buffer_rgb,
+	.scale_line_buffer_ed = sun8iw12_de_scale_line_buffer_ed,
+};
 static const int sun8iw17_de_num_chns[] = {
 	/* DISP0 */
 	4,
@@ -909,6 +1018,39 @@ int de_feat_get_scale_linebuf_for_ed(unsigned int disp, unsigned int chn)
 	return de_cur_features->scale_line_buffer_ed[index];
 }
 
+/**
+ * @name       :de_feat_get_tcon_type
+ * @brief      :get tcon type
+ * @param[IN]  :tcon_index:index of tcon in software
+ * @return     :0->tcon_lcd,1->tcon_tv
+ */
+unsigned int de_feat_get_tcon_type(unsigned int tcon_index)
+{
+	return (de_cur_features->supported_output_types[tcon_index] &
+		DE_OUTPUT_TYPE_LCD)
+		   ? 0
+		   : 1;
+}
+
+/**
+ * @name       :de_feat_get_tcon_index
+ * @brief      :get tcon index of spec of display if top
+ * @param[IN]  :tcon_index:tcon index of software
+ * @return     :return a positive index,-1 if fail to find one
+ */
+int de_feat_get_tcon_index(unsigned int tcon_index)
+{
+	unsigned int i = 0, tcon_type = 0;
+
+	tcon_type = de_feat_get_tcon_type(tcon_index);
+
+	for (i = 0; i < DEVICE_NUM; ++i) {
+		if (de_feat_get_tcon_type(i) == tcon_type)
+			return tcon_index - i;
+	}
+	return -1;
+}
+
 int de_feat_init(void)
 {
 #if defined(CONFIG_ARCH_SUN50IW2P1)
@@ -917,6 +1059,8 @@ int de_feat_init(void)
 	de_cur_features = &sun50iw1_de_features;
 #elif defined(CONFIG_ARCH_SUN8IW11P1)
 	de_cur_features = &sun8iw11_de_features;
+#elif defined(CONFIG_ARCH_SUN8IW12P1)
+	de_cur_features = &sun8iw12_de_features;
 #elif defined(CONFIG_ARCH_SUN8IW17P1)
 	de_cur_features = &sun8iw17_de_features;
 #else

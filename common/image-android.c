@@ -94,7 +94,7 @@ int check_env_in_cmdline(char * cmdline, char * env_name)
         tmp[i++] = *p;
     }
 
-    return 1;
+    return 0;
 }
 
 /*

@@ -130,6 +130,9 @@ int  card_part_info(__u32 *part_start, __u32 *part_size, const char *str)
 
     for(i=0;i<mbr->PartCount;i++)
     {
+    	printf("part name  = %s\n", mbr->array[i].name);
+    	printf("part start = %d\n", mbr->array[i].addrlo);
+    	printf("part size  = %d\n", mbr->array[i].lenlo);
         if(!strcmp(str, (char *)mbr->array[i].name))
         {
             *part_start = mbr->array[i].addrlo;
@@ -299,13 +302,13 @@ int sprite_form_sysrecovery(void)
     __u32       part_size;
     __u32		img_start;
     sunxi_download_info   *dl_info  = NULL;
-    int         ret = -1;
+	int         ret = -1;
 	int production_media = get_boot_storage_type();
 
 	printf("sunxi sprite begin\n");
 
 	sprite_cartoon_create();
-			
+
 	ret = card_part_info(&img_start, &part_size, "sysrecovery");
 	if (ret)
 	{
@@ -349,13 +352,13 @@ int sprite_form_sysrecovery(void)
 	if (sunxi_sprite_deal_part_from_sysrevoery(dl_info))
 	{
 		printf("sunxi sprite error : download part error\n");
-		return -1;
+		goto _update_error_;
 	}
 
 	if(sunxi_sprite_deal_recorvery_boot(production_media))
 	{
 		printf("recovery error : download uboot or boot0 error!\n");
-		return -1;
+		goto _update_error_;
 	}
 	tick_printf("successed in downloading uboot and boot0\n");
 	sprite_cartoon_upgrade(100);
@@ -363,9 +366,9 @@ int sprite_form_sysrecovery(void)
 
 	Img_Close(imghd);
 	if (dl_info)
-    {
-    	free(dl_info);
-    }
+	{
+		free(dl_info);
+	}
 
 	//处理烧写完成后重启
 	sunxi_board_restart(0);
@@ -373,10 +376,9 @@ int sprite_form_sysrecovery(void)
 	
 _update_error_:
 	if (dl_info)
-    {
-    	free(dl_info);
-    }
-
+	{
+		free(dl_info);
+	}
 	printf("sprite update error: current card sprite failed\n");
 	printf("now hold the machine\n");
 	return -1;

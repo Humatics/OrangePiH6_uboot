@@ -456,9 +456,9 @@ int disp_sys_pin_set_state(char *dev_name, char *name)
 	int ret = -1;
 
 	if (!strcmp(name, DISP_PIN_STATE_ACTIVE))
-		ret = gpio_request_by_function("lcd0", NULL);
+		ret = gpio_request_simple("lcd0", NULL);
 	else
-		ret = gpio_request_by_function("lcd0_suspend", NULL);
+		ret = gpio_request_simple("lcd0_suspend", NULL);
 #endif
 	return ret;
 }

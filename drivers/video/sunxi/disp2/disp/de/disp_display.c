@@ -763,6 +763,9 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 			width = 1920;
 			height = 1080;
 			break;
+		case DISP_TV_MOD_1080_1920P_60HZ:
+			width = 1080;
+			height = 1920;
 		case DISP_TV_MOD_3840_2160P_30HZ:
 		case DISP_TV_MOD_3840_2160P_25HZ:
 		case DISP_TV_MOD_3840_2160P_24HZ:
@@ -770,6 +773,11 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 			height = 2160;
 			break;
 		case DISP_TV_MOD_4096_2160P_24HZ:
+		case DISP_TV_MOD_4096_2160P_25HZ:
+		case DISP_TV_MOD_4096_2160P_30HZ:
+		case DISP_TV_MOD_4096_2160P_50HZ:
+		case DISP_TV_MOD_4096_2160P_60HZ:
+
 			width = 4096;
 			height = 2160;
 			break;
@@ -797,6 +805,10 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 			width = 1440;
 			height = 900;
 			break;
+		case DISP_TV_MOD_1440_2560P_70HZ:
+			width = 1440;
+			height = 2560;
+			break;
 		case DISP_VGA_MOD_1920_1080P_60:
 			width = 1920;
 			height = 1080;
@@ -808,6 +820,10 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 		case DISP_VGA_MOD_1280_720P_60:
 			width = 1280;
 			height = 720;
+			break;
+		case DISP_TV_MOD_2560_1440P_60HZ:
+			width = 2560;
+			height = 1440;
 			break;
 		}
 	}
@@ -857,13 +873,20 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 o
 			width = 1920;
 			height = 1080;
 			break;
+		case DISP_TV_MOD_1080_1920P_60HZ:
+			width = 1080;
+			height = 1920;
 		case DISP_TV_MOD_3840_2160P_30HZ:
 		case DISP_TV_MOD_3840_2160P_25HZ:
 		case DISP_TV_MOD_3840_2160P_24HZ:
 			width = 3840;
 			height = 2160;
 			break;
-		case DISP_TV_MOD_4096_2160P_24HZ:
+ 		case DISP_TV_MOD_4096_2160P_24HZ:
+		case DISP_TV_MOD_4096_2160P_25HZ:
+		case DISP_TV_MOD_4096_2160P_30HZ:
+		case DISP_TV_MOD_4096_2160P_50HZ:
+		case DISP_TV_MOD_4096_2160P_60HZ:
 			width = 4096;
 			height = 2160;
 			break;
@@ -891,6 +914,10 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 o
 			width = 1440;
 			height = 900;
 			break;
+		case DISP_TV_MOD_1440_2560P_70HZ:
+			width = 1440;
+			height = 2560;
+			break;
 		case DISP_VGA_MOD_1920_1080P_60:
 			width = 1920;
 			height = 1080;
@@ -902,6 +929,10 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 o
 		case DISP_VGA_MOD_1280_720P_60:
 			width = 1280;
 			height = 720;
+			break;
+		case DISP_TV_MOD_2560_1440P_60HZ:
+			width = 2560;
+			height = 1440;
 			break;
 		}
 	}
@@ -1311,11 +1342,45 @@ s32 bsp_disp_lcd_tcon_enable(u32 disp)
 {
 	int ret = -1;
 	struct disp_device *lcd;
+	struct disp_device *lcd_slave;
+
+	disp_panel_para *panel_info =
+	    kmalloc(sizeof(disp_panel_para), GFP_KERNEL | __GFP_ZERO);
+
+	if (panel_info == NULL)
+		goto OUT;
 
 	lcd = disp_get_lcd(disp);
+	if (lcd == NULL)
+		goto FREE_INFO;
+
+	if (lcd && lcd->get_panel_info)
+		ret = lcd->get_panel_info(lcd, panel_info);
+
+	if (ret != 0)
+		goto FREE_INFO;
+
+	if (panel_info->lcd_tcon_mode == DISP_TCON_SLAVE_MODE) {
+		ret = 0;
+		goto FREE_INFO;
+	}
+
 	if (lcd && lcd->tcon_enable)
 		ret = lcd->tcon_enable(lcd);
 
+	if (panel_info->lcd_tcon_mode <= DISP_TCON_MASTER_SYNC_EVERY_FRAME &&
+	    panel_info->lcd_tcon_mode >= DISP_TCON_MASTER_SYNC_AT_FIRST_TIME) {
+		lcd_slave = disp_get_lcd(panel_info->lcd_slave_tcon_num);
+		if (lcd_slave == NULL)
+			goto FREE_INFO;
+		if (lcd_slave && lcd_slave->tcon_enable)
+			ret = lcd_slave->tcon_enable(lcd_slave);
+	}
+
+FREE_INFO:
+	if (panel_info != NULL)
+		kfree(panel_info);
+OUT:
 	return ret;
 }
 
@@ -1323,11 +1388,40 @@ s32 bsp_disp_lcd_tcon_disable(u32 disp)
 {
 	int ret = -1;
 	struct disp_device *lcd;
+	struct disp_device *lcd_slave;
+
+	disp_panel_para *panel_info =
+	    kmalloc(sizeof(disp_panel_para), GFP_KERNEL | __GFP_ZERO);
+
+	if (panel_info == NULL)
+		goto OUT;
 
 	lcd = disp_get_lcd(disp);
+	if (lcd == NULL)
+		goto FREE_INFO;
+
+	if (lcd && lcd->get_panel_info)
+		ret = lcd->get_panel_info(lcd, panel_info);
+
+	if (ret != 0)
+		goto FREE_INFO;
+
 	if (lcd && lcd->tcon_disable)
 		ret = lcd->tcon_disable(lcd);
 
+	if (panel_info->lcd_tcon_mode <= DISP_TCON_MASTER_SYNC_EVERY_FRAME &&
+	    panel_info->lcd_tcon_mode >= DISP_TCON_MASTER_SYNC_AT_FIRST_TIME) {
+		lcd_slave = disp_get_lcd(panel_info->lcd_slave_tcon_num);
+		if (lcd_slave == NULL)
+			goto FREE_INFO;
+		if (lcd_slave && lcd_slave->tcon_disable)
+			ret = lcd_slave->tcon_disable(lcd_slave);
+	}
+
+FREE_INFO:
+	if (panel_info != NULL)
+		kfree(panel_info);
+OUT:
 	return ret;
 }
 
@@ -1390,3 +1484,181 @@ int bsp_disp_get_display_size(u32 disp, unsigned int *width, unsigned int *heigh
 	return disp_al_get_display_size(disp, width, height);
 }
 
+#if defined(SUPPORT_DSI)
+__weak s32 dsi_mode_switch(__u32 sel, __u32 cmd_en, __u32 lp_en)
+{
+	return 0;
+}
+
+extern s32 dsi_mode_switch(__u32 sel, __u32 cmd_en, __u32 lp_en);
+s32 bsp_disp_lcd_dsi_mode_switch(u32 disp, u32 cmd_en, u32 lp_en)
+{
+	s32 ret = -1;
+	disp_panel_para *panel_info = kmalloc(sizeof(disp_panel_para),
+					      GFP_KERNEL | __GFP_ZERO);
+
+	ret = bsp_disp_get_panel_info(disp, panel_info);
+	if (ret == DIS_FAIL) {
+		DE_WRN("%s:Get panel info failed\n", __func__);
+		goto OUT;
+	}
+
+	if (panel_info->lcd_tcon_mode == DISP_TCON_SLAVE_MODE)
+		goto OUT;
+
+	ret = dsi_mode_switch(disp, cmd_en, lp_en);
+	if (panel_info->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+	    disp + 1 < DEVICE_DSI_NUM)
+		ret = dsi_mode_switch(disp + 1, cmd_en, lp_en);
+	else if (panel_info->lcd_tcon_mode != DISP_TCON_NORMAL_MODE &&
+		 panel_info->lcd_tcon_mode != DISP_TCON_DUAL_DSI)
+		ret = dsi_mode_switch(panel_info->lcd_slave_tcon_num, cmd_en, lp_en);
+
+OUT:
+	kfree(panel_info);
+	return ret;
+}
+
+s32 bsp_disp_lcd_dsi_close(u32 disp)
+{
+	s32 ret = -1;
+	disp_panel_para *panel_info = kmalloc(sizeof(disp_panel_para),
+					      GFP_KERNEL | __GFP_ZERO);
+
+	ret = bsp_disp_get_panel_info(disp, panel_info);
+	if (ret == DIS_FAIL) {
+		DE_WRN("%s:Get panel info failed\n", __func__);
+		goto OUT;
+	}
+
+	if (panel_info->lcd_tcon_mode == DISP_TCON_SLAVE_MODE)
+		goto OUT;
+
+	ret = dsi_mode_switch(disp, 0, 0);
+	if (panel_info->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+	    disp + 1 < DEVICE_DSI_NUM)
+		ret = dsi_mode_switch(disp + 1, 0, 0);
+	else if (panel_info->lcd_tcon_mode != DISP_TCON_NORMAL_MODE &&
+		 panel_info->lcd_tcon_mode != DISP_TCON_DUAL_DSI)
+		ret = dsi_mode_switch(panel_info->lcd_slave_tcon_num, 0, 0);
+OUT:
+	kfree(panel_info);
+	return ret;
+}
+
+s32 bsp_disp_lcd_dsi_clk_enable(u32 disp, u32 en)
+{
+	s32 ret = -1;
+	disp_panel_para *panel_info =
+	    kmalloc(sizeof(disp_panel_para), GFP_KERNEL | __GFP_ZERO);
+
+	ret = bsp_disp_get_panel_info(disp, panel_info);
+	if (ret == DIS_FAIL) {
+		DE_WRN("%s:Get panel info failed\n", __func__);
+		goto OUT;
+	}
+
+	if (panel_info->lcd_tcon_mode == DISP_TCON_SLAVE_MODE)
+		goto OUT;
+
+	ret = dsi_clk_enable(disp, en);
+	if (panel_info->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+	    disp + 1 < DEVICE_DSI_NUM)
+		ret = dsi_clk_enable(disp + 1, en);
+	else if (panel_info->lcd_tcon_mode != DISP_TCON_NORMAL_MODE &&
+		 panel_info->lcd_tcon_mode != DISP_TCON_DUAL_DSI)
+		ret = dsi_clk_enable(panel_info->lcd_slave_tcon_num, en);
+OUT:
+	kfree(panel_info);
+	return ret;
+}
+
+s32 bsp_disp_lcd_dsi_dcs_wr(u32 disp, u8 command, u8 *para, u32 para_num)
+{
+	s32 ret = -1;
+	disp_panel_para *panel_info =
+	    kmalloc(sizeof(disp_panel_para), GFP_KERNEL | __GFP_ZERO);
+
+	ret = bsp_disp_get_panel_info(disp, panel_info);
+	if (ret == DIS_FAIL) {
+		DE_WRN("%s:Get panel info failed\n", __func__);
+		goto OUT;
+	}
+
+	if (panel_info->lcd_tcon_mode == DISP_TCON_SLAVE_MODE)
+		goto OUT;
+
+	ret = dsi_dcs_wr(disp, command, para, para_num);
+	if (panel_info->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+	    disp + 1 < DEVICE_DSI_NUM &&
+	    panel_info->lcd_dsi_port_num == DISP_LCD_DSI_SINGLE_PORT)
+		ret = dsi_dcs_wr(disp + 1, command, para, para_num);
+	else if (panel_info->lcd_tcon_mode != DISP_TCON_NORMAL_MODE &&
+		 panel_info->lcd_tcon_mode != DISP_TCON_DUAL_DSI)
+		ret = dsi_dcs_wr(panel_info->lcd_slave_tcon_num, command, para,
+				 para_num);
+OUT:
+	kfree(panel_info);
+	return ret;
+}
+
+s32 bsp_disp_lcd_dsi_gen_wr(u32 disp, u8 command, u8 *para, u32 para_num)
+{
+	s32 ret = -1;
+	disp_panel_para *panel_info =
+	    kmalloc(sizeof(disp_panel_para), GFP_KERNEL | __GFP_ZERO);
+
+	ret = bsp_disp_get_panel_info(disp, panel_info);
+	if (ret == DIS_FAIL) {
+		DE_WRN("%s:Get panel info failed\n", __func__);
+		goto OUT;
+	}
+
+	if (panel_info->lcd_tcon_mode == DISP_TCON_SLAVE_MODE)
+		goto OUT;
+
+	ret = dsi_gen_wr(disp, command, para, para_num);
+	if (panel_info->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
+	    disp + 1 < DEVICE_DSI_NUM &&
+	    panel_info->lcd_dsi_port_num == DISP_LCD_DSI_SINGLE_PORT)
+		ret = dsi_gen_wr(disp + 1, command, para, para_num);
+	else if (panel_info->lcd_tcon_mode != DISP_TCON_NORMAL_MODE &&
+		 panel_info->lcd_tcon_mode != DISP_TCON_DUAL_DSI)
+		ret = dsi_gen_wr(panel_info->lcd_slave_tcon_num, command, para,
+				 para_num);
+OUT:
+	kfree(panel_info);
+	return ret;
+}
+s32 bsp_disp_lcd_dsi_gen_short_read(u32 sel, u8 *para_p, u8 para_num,
+				    u8 *result)
+{
+	s32 ret = -1;
+
+	if (!result || !para_p || para_num > 2) {
+		DE_WRN("Wrong para!\n");
+		goto OUT;
+	}
+	ret = dsi_gen_short_rd(sel, para_p, para_num, result);
+OUT:
+	return ret;
+}
+
+s32 bsp_disp_lcd_dsi_dcs_read(u32 sel, u8 cmd, u8 *result, u32 *num_p)
+{
+	s32 ret = -1;
+
+	if (!result || !num_p) {
+		DE_WRN("Wrong para!\n");
+		goto OUT;
+	}
+	ret = dsi_dcs_rd(sel, cmd, result, num_p);
+OUT:
+	return ret;
+}
+
+s32 bsp_disp_lcd_set_max_ret_size(u32 sel, u32 size)
+{
+	return dsi_set_max_ret_size(sel, size);
+}
+#endif /*endif SUPPORT_DSI */

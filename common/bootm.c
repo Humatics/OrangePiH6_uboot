@@ -27,10 +27,11 @@
 #include <command.h>
 #include <bootm.h>
 #include <image.h>
+#include <sys_partition.h>
 
 #ifndef CONFIG_SYS_BOOTM_LEN
 /* use 8MByte as default max gunzip size */
-#define CONFIG_SYS_BOOTM_LEN	0x800000
+#define CONFIG_SYS_BOOTM_LEN	0x1400000
 #endif
 
 #define IH_INITRD_ARCH IH_ARCH_DEFAULT
@@ -519,6 +520,30 @@ static void fixup_silent_linux(void)
 }
 #endif /* CONFIG_SILENT_CONSOLE */
 
+extern int get_boot_storage_type(void);
+static void update_bootargs(void)
+{
+	char *str;
+	char cmdline[1024] = {0};
+	char tmpbuf[128] = {0};
+	str = getenv("bootargs");
+
+	strcpy(cmdline,str);
+
+	//boot_type
+	sprintf(tmpbuf, " boot_type=%d", get_boot_storage_type());
+	strcat(cmdline,tmpbuf);
+
+	/* gpt support */
+	if (PART_TYPE_GPT == sunxi_partition_get_type())
+	{
+		sprintf(tmpbuf, " gpt=1");
+		strcat(cmdline, tmpbuf);
+	}
+
+	setenv("bootargs", cmdline);
+}
+
 /**
  * Execute selected states of the bootm command.
  *
@@ -553,6 +578,8 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 
 	images->state |= states;
 
+	update_bootargs();
+
 	/*
 	 * Work through the states and see how far we get. We stop on
 	 * any error.
@@ -572,7 +599,7 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	if (!ret && (states & BOOTM_STATE_LOADOS)) {
 		ulong load_end;
 
-		iflag = bootm_disable_interrupts();
+		//iflag = bootm_disable_interrupts();
 		ret = bootm_load_os(images, &load_end, 0);
 		if (ret == 0)
 			lmb_reserve(&images->lmb, images->os.load,

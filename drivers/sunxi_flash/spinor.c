@@ -31,6 +31,7 @@
 #include "sys_config.h"
 #include "sys_partition.h"
 #include "flash_interface.h"
+#include <sunxi_board.h>
 
 
 
@@ -149,7 +150,7 @@ int  spinor_init_for_sprite(int workmode)
 	//sunxi_sprite_datafinish_pt = sunxi_flash_spinor_datafinish;
 	debug("sunxi sprite has installed spi function\n");
 
-	uboot_spare_head.boot_data.storage_type = STORAGE_NOR;
+	set_boot_storage_type(STORAGE_NOR);
 	return 0;
 }
 

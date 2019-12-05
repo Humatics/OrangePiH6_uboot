@@ -23,6 +23,7 @@
  */
 
 #include <common.h>
+#include <asm/armv7.h>
 #include <asm/io.h>
 #include <asm/arch/timer.h>
 #include <asm/arch/ccmu.h>
@@ -179,11 +180,30 @@ int script_init(void)
 *
 ************************************************************************************************************
 */
-void sunxi_set_fel_flag(void)
-{
-	*((volatile unsigned int *)(SUNXI_RUN_EFEX_ADDR)) = SUNXI_RUN_EFEX_FLAG;
-	asm volatile("DMB SY");
-}
+	void sunxi_set_fel_flag(void)
+	{
+#ifndef CONFIG_ARCH_SUN8IW6P1
+		*((volatile unsigned int *)(SUNXI_RUN_EFEX_ADDR)) = SUNXI_RUN_EFEX_FLAG;
+		asm volatile("DMB SY");
+#else
+		volatile uint reg_val;
+
+		do {
+			smc_writel((1 << 16) | (SUNXI_RUN_EFEX_FLAG << 8),
+				   SUNXI_RPRCM_BASE + 0x1f0);
+			smc_writel((1 << 16) | (SUNXI_RUN_EFEX_FLAG << 8) |
+				       (1U << 31),
+				   SUNXI_RPRCM_BASE + 0x1f0);
+			__usdelay(10);
+			CP15ISB;
+			CP15DMB;
+			smc_writel((1 << 16) | (SUNXI_RUN_EFEX_FLAG << 8),
+				   SUNXI_RPRCM_BASE + 0x1f0);
+			reg_val = smc_readl(SUNXI_RPRCM_BASE + 0x1f0);
+		} while ((reg_val & 0xff) != SUNXI_RUN_EFEX_FLAG);
+#endif
+	}
+
 /*
 ************************************************************************************************************
 *
@@ -249,12 +269,19 @@ void sunxi_board_close_source(void)
 
 int sunxi_board_restart(int next_mode)
 {
-	if(!next_mode)
+	if (!next_mode)
 	{
 		next_mode = PMU_PRE_SYS_MODE;
 	}
 	printf("set next mode %d\n", next_mode);
-	axp_set_next_poweron_status(next_mode);
+	#ifdef CONFIG_ARCH_SUN8IW6P1
+	if (uboot_spare_head.boot_data.work_mode == WORK_MODE_USB_PRODUCT)
+		printf("skip setting poweron status in usb product mode\n");
+	else
+		axp_set_next_poweron_status(next_mode);
+#else
+    axp_set_next_poweron_status(next_mode);
+#endif
 
 #ifdef CONFIG_SUNXI_DISPLAY
 	board_display_set_exit_mode(0);

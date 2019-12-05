@@ -171,13 +171,14 @@ static s32 tv_read_sid(u16 *p_dac_cali, u16 *p_bandgap)
 {
 	s32 ret = 0;
 	u8 buf[48];
+	s32 buf_len = 48;
 
 	if (p_dac_cali == NULL || p_bandgap == NULL) {
 		__ac200_err("%s's pointer type args are NULL!\n", __func__);
 		return -1;
 	}
-	ret = sunxi_efuse_read(EFUSE_EMAC_NAME, buf);
-	if (ret <= 0) {
+	ret = sunxi_efuse_read(EFUSE_EMAC_NAME, buf, &buf_len);
+	if (ret < 0) {
 		__ac200_err("sunxi_efuse_readn failed:%d\n", ret);
 		return ret;
 	}

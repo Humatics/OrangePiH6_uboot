@@ -69,9 +69,9 @@ endif
 else
 
 ifeq ($(SUNXI_MODE),$(OTA_TEST_NAME))
-spl:    fes boot0
-else
 spl:    boot0
+else
+spl:    fes boot0
 endif
 
 endif

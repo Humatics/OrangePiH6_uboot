@@ -43,8 +43,20 @@ extern int sunxi_sprite_mmc_phyerase(unsigned int start_block, unsigned int nblo
 extern int sunxi_sprite_mmc_phywipe(unsigned int start_block, unsigned int nblock, void *skip);
 extern void board_mmc_pre_init(int card_num);
 
+extern int sunxi_sprite_mmc_bootop_enable(int part_nu, int enable);
+extern int sunxi_sprite_mmc_bootp_phyread(unsigned int start_block, unsigned int nblock, void *buffer);
+extern int sunxi_sprite_mmc_bootp_phywrite(unsigned int start_block, unsigned int nblock, void *buffer);
+extern int sunxi_sprite_mmc_bootp_phyerase(unsigned int start_block, unsigned int nblock, void *skip);
 
-//normal 
+extern int sunxi_flash_user_phyget_wp_grp_size(unsigned int *wp_grp_size);
+extern int sunxi_flash_user_phywrite_protect(unsigned wp_type, unsigned start, unsigned blkcnt);
+extern int sunxi_flash_phyclr_tem_wp(unsigned start, unsigned blkcnt);
+
+extern int sunxi_sprite_user_phyget_wp_grp_size(unsigned int *wp_grp_size);
+extern int sunxi_sprite_user_phywrite_protect(unsigned wp_type, unsigned start, unsigned blkcnt);
+extern int sunxi_sprite_phyclr_tem_wp(unsigned start, unsigned blkcnt);
+
+//normal
 extern int  sunxi_flash_init (int type);
 extern uint sunxi_flash_size (void);
 extern int  sunxi_flash_exit (int force);
@@ -53,6 +65,7 @@ extern int  sunxi_flash_write(unsigned int start_block, unsigned int nblock, voi
 extern int  sunxi_flash_flush(void);
 extern int  sunxi_flash_phyread(unsigned int start_block, unsigned int nblock, void *buffer);
 extern int  sunxi_flash_phywrite(unsigned int start_block, unsigned int nblock, void *buffer);
+extern int sunxi_mmc_enable_bootop(int part_nu, int enable);
 
 //video
 extern uint sprite_cartoon_create(void);

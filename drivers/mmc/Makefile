@@ -36,6 +36,7 @@ obj-$(CONFIG_GENERIC_MMC) += mmc_write.o
 obj-$(CONFIG_MMC_SUNXI) += sunxi_mmc_interface.o
 obj-$(CONFIG_MMC_SUNXI) += sunxi_mmc_tuning.o
 obj-$(CONFIG_MMC_SUNXI) += mmc_test.o
+obj-$(CONFIG_MMC_SUNXI) += sunxi_mmc_ffu.o
 ifdef CONFIG_SPL_BUILD
 obj-$(CONFIG_SPL_MMC_BOOT) += fsl_esdhc_spl.o
 else

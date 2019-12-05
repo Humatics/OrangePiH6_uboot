@@ -31,59 +31,44 @@
 #include <fdt_support.h>
 #include <asm/arch/ccmu.h>
 #include <asm/arch/timer.h>
-
+#include <sys_config_old.h>
 
 
 __attribute__((section(".data")))
-static uint32_t keyen_flag = 1;
-
-/*__weak int sunxi_key_clock_open(void)
-{
-	return 0;
-}
-
-__weak int sunxi_key_clock_close(void)
-{
-	return 0;
-}*/
+static int keyen_flag = 1;
 
 int sunxi_key_init(void)
 {
 	uint reg_val = 0;
-	int nodeoffset;
 
 	sunxi_key_clock_open();
 
 	/*choose channel 0*/
-	reg_val = *GP_CS_EN;
+	reg_val = readl(GP_CS_EN);
 	reg_val |= 1;
-	*GP_CS_EN= reg_val;
+	writel(reg_val, GP_CS_EN);
 
 	/*choose continue work mode and enable ADC*/
-	reg_val = *GP_CTRL;
+	reg_val = readl(GP_CTRL);
 	reg_val &= ~(1<<18);
 	reg_val |= ((1<<19) | (1<<16));
-	*GP_CTRL = reg_val;
+	writel(reg_val, GP_CTRL);
 
 	/* disable all key irq */
-	*GP_DATA_INTC = 0;
-	*GP_DATA_INTS= 1;
+	writel(0, GP_DATA_INTC);
+	writel(1, GP_DATA_INTS);
 
-	nodeoffset = fdt_path_offset(working_fdt,FDT_PATH_KEY_DETECT);
-	if(nodeoffset > 0)
-	{
-		fdt_getprop_u32(working_fdt,nodeoffset,"keyen_flag",&keyen_flag);
-	}
+	script_parser_fetch("key_detect_en", "keyen_flag", &keyen_flag, 1);
 
 	return 0;
 }
 
 int sunxi_key_exit(void)
 {
-	*GP_CTRL = 0;
+	writel(0, GP_CTRL);
 	/* disable all key irq */
-	*GP_DATA_INTC = 0;
-	*GP_DATA_INTS = 0;
+	writel(0, GP_DATA_INTC);
+	writel(0, GP_DATA_INTS);
 
 	sunxi_key_clock_close();
 
@@ -94,27 +79,21 @@ int sunxi_key_read(void)
 {
 	u32 ints;
 	int key = -1;
-	float vin;
+	int vin;
 
-	if(!keyen_flag)
-	{
+	if (!keyen_flag)
 		return -1;
-	}
-	ints = *GP_DATA_INTS;
+
+	ints = readl(GP_DATA_INTS);
 	/* clear the pending data */
-	*GP_DATA_INTS |= (ints & 0x1);
-	/* if there is already data pending,
-	 read it */
-	if(ints & GPADC0_DATA_PENDING)
-	{
-		vin = (*GP_CH0_DATA)*1.8/4095;
-		if(vin > 1.6)
-		{
+	writel(readl(GP_DATA_INTS)|(ints & 0x1), GP_DATA_INTS);
+	/* if there is already data pending, read it */
+	if (ints & GPADC0_DATA_PENDING) {
+		vin = readl(GP_CH0_DATA)*18/4095;
+		if (vin > 16)
 			key = -1;
-		}
-		else
-		{
-			key = ((*GP_CH0_DATA)*63/4095);
+		else {
+			key = readl(GP_CH0_DATA)*63/4095;
 			printf("key pressed value=0x%x\n", key);
 		}
 	}
@@ -125,20 +104,10 @@ int sunxi_key_read(void)
 int do_key_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	u32 power_key = 0;
-	int nodeoffset;
 
-	nodeoffset = fdt_path_offset(working_fdt,FDT_PATH_KEY_DETECT);
-	if(nodeoffset > 0)
-	{
-		fdt_getprop_u32(working_fdt,nodeoffset,"keyen_flag",&keyen_flag);
-	}
-	if(!keyen_flag)
-	{
-		puts("warnning: not support,please set keyen_flag=1 in sys_config.fex\n");
-		return -1;
-	}
-	puts(" press a key:\n");
-	*GP_DATA_INTS = 1;
+	writel(1, GP_DATA_INTS);
+
+	printf(" press a key:\n");
 	while(!ctrlc())
 	{
 		sunxi_key_read();

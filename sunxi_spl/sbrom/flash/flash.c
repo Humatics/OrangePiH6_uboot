@@ -58,7 +58,11 @@ int sunxi_flash_init(int boot_type)
 		sbrom_toc1_head_info_t  *toc1_head;
 		int  sunxi_flash_mmc_card_no;
 		int start_sector,i;
+#ifdef CONFIG_MMC_BOOT_START
+		int start_sectors[4] = {UBOOT_START_SECTOR_IN_SDMMC,0,0,0};
+#else
 		int start_sectors[4] = {UBOOT_START_SECTOR_IN_SDMMC,UBOOT_BACKUP_START_SECTOR_IN_SDMMC,0,0};
+#endif
 
 		if(boot_type == BOOT_FROM_SD0)
 		{
@@ -84,8 +88,11 @@ int sunxi_flash_init(int boot_type)
 				printf("mmc: read all toc1 failed\n");
 				return -1;
 			}
-
+#ifdef CONFIG_MMC_BOOT_START
+			ret = mmc_bread_bootp(sunxi_flash_mmc_card_no, start_sector, 64, 1, tmp_buff);
+#else
 			ret = mmc_bread(sunxi_flash_mmc_card_no, start_sector, 64, tmp_buff);
+#endif
 			if(!ret)
 			{
 				printf("mmc: read error,start=%d\n",start_sector);
@@ -101,7 +108,11 @@ int sunxi_flash_init(int boot_type)
 			if(head_size > 64 * 512)
 			{
 				tmp_buff += 64*512;
+#ifdef CONFIG_MMC_BOOT_START
+				ret = mmc_bread_bootp(sunxi_flash_mmc_card_no, start_sector + 64, (head_size - 64*512 + 511)/512, 1, tmp_buff);
+#else
 				ret = mmc_bread(sunxi_flash_mmc_card_no, start_sector + 64, (head_size - 64*512 + 511)/512, tmp_buff);
+#endif
 				if(!ret)
 				{
 					printf("mmc:read error\n");

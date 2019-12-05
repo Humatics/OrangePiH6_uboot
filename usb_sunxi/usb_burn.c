@@ -80,6 +80,18 @@ int arm_svc_efuse_read(void *key_buf, void *read_buf)
 	return 0;
 }
 
+__attribute__((weak))
+int sunxi_efuse_write(void *key_buf)
+{
+	printf("call weak fun: %s\n",__func__);
+	return -1;
+}
+__attribute__((weak))
+int sunxi_efuse_read(void *key_name, void *read_buf,int *len)
+{
+	printf("call weak fun: %s\n",__func__);
+	return -1;
+}
 
 static  int sunxi_usb_pburn_write_enable = 0;
 #if defined(SUNXI_USB_30)
@@ -100,6 +112,10 @@ extern volatile int sunxi_usb_burn_from_boot_setup;
 static uint burn_private_start, burn_private_len;
 static uint burn_part_start, burn_part_len;
 extern int sunxi_get_securemode(void);
+#ifdef CONFIG_BURN_NORMAL_EFUSE
+extern int sunxi_efuse_write(void *key_buf);
+extern int  sunxi_efuse_read(void *key_name, void *read_buf,int *len);
+#endif
 
 void set_usb_burn_boot_init_flag(int flag )
 {
@@ -736,12 +752,9 @@ int __sunxi_read_key_by_name(void *buffer, uint buff_len, int *read_len)
 				printf("efuse read %s err\n", key_info->name);
 				return -1;
 			}
-		}
-		else
-		{
-			key_data_len = sunxi_efuse_read(key_info->name, (void *)data_buff);
-			if(key_data_len <= 0)
-			{
+
+		} else {
+			if (sunxi_efuse_read(key_info->name, (void *)data_buff, &key_data_len)) {
 				printf("efuse read %s err\n", key_info->name);
 				return -1;
 			}

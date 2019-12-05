@@ -36,8 +36,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define SPI_RX_IO_DATA                  (SPIC0_BASE + 0x300)
 
 #define  NAND_DRV_VERSION_0             0x03
-#define  NAND_DRV_VERSION_1             0x6010
-#define  NAND_DRV_DATE                  0x20170605
+#define  NAND_DRV_VERSION_1             0x6011
+#define  NAND_DRV_DATE                  0x20171103
 #define  NAND_DRV_TIME                  0x1026
 
 #define NAND_CLK_BASE_ADDR              (0x03001000)
@@ -49,12 +49,12 @@ extern __u32 get_storage_type_from_init(void);
 
 __u32 get_wvalue(__u32 addr)
 {
-	return (smc_readl(addr));
+	return readl(addr);
 }
 
 void put_wvalue(__u32 addr,__u32 v)
 {
-	smc_writel(v, addr);
+	writel(v, addr);
 }
 
 __u32 NAND_GetNdfcVersion(void);
@@ -567,31 +567,31 @@ __s32 _change_spic_clk_v1(__u32 spinand_index, __u32 dclk_src_sel, __u32 dclk)
 
 	sclk0_src_t = sclk0_src>>sclk0_pre_ratio_n;
 
-	//sclk0_ratio_m
+	/* sclk0_ratio_m */
 	sclk0_ratio_m = (sclk0_src_t/(sclk0)) - 1;
 	if( sclk0_src_t%(sclk0) )
 	sclk0_ratio_m +=1;
 
-	/////////////////////////////// close clock
+	/* close clock */
 	reg_val = get_wvalue(sclk0_reg_adr);
 	reg_val &= (~(0x1U<<31));
 	put_wvalue(sclk0_reg_adr, reg_val);
 
-	///////////////////////////////configure
-	//sclk0 <--> 2*dclk
+	/* configure */
+	/* sclk0 <--> 2*dclk */
 	reg_val = get_wvalue(sclk0_reg_adr);
-	//clock source select
+	/* clock source select */
 	reg_val &= (~(0x7<<24));
 	reg_val |= (sclk0_src_sel&0x7)<<24;
-	//clock pre-divide ratio(N)
+	/* clock pre-divide ratio(N) */
 	reg_val &= (~(0x3<<8));
 	reg_val |= (sclk0_pre_ratio_n&0x3)<<8;
-	//clock divide ratio(M)
+	/* clock divide ratio(M) */
 	reg_val &= ~(0xf<<0);
 	reg_val |= (sclk0_ratio_m&0xf)<<0;
 	put_wvalue(sclk0_reg_adr, reg_val);
 
-	/////////////////////////////// open clock
+	/* open clock */
 	reg_val = get_wvalue(sclk0_reg_adr);
 	reg_val |= 0x1U<<31;
 	put_wvalue(sclk0_reg_adr, reg_val);
@@ -610,7 +610,7 @@ __s32 _close_spic_clk_v1(__u32 spinand_index)
 	u32 sclk0_reg_adr;
 
 	if (spinand_index == 0) {
-		//disable nand sclock gating
+		/*disable nand sclock gating*/
 		sclk0_reg_adr = (NAND_CLK_BASE_ADDR + 0x0940); //CCM_SPI0_CLK_REG;
 
 		reg_val = get_wvalue(sclk0_reg_adr);
@@ -634,12 +634,12 @@ __s32 _open_spic_ahb_gate_and_reset_v1(__u32 spinand_index)
 	1. release ahb reset and open ahb clock gate for ndfc version 1.
 	*/
 	if (spinand_index == 0) {
-		// reset
+		/* reset */
 		reg_val = get_wvalue(NAND_CLK_BASE_ADDR + 0x096c);
 		reg_val &= (~(0x1U<<16));
 		reg_val |= (0x1U<<16);
 		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c),reg_val);
-		// ahb clock gate
+		/* ahb clock gate */
 		reg_val = get_wvalue(NAND_CLK_BASE_ADDR + 0x096c);
 		reg_val &= (~(0x1U<<0));
 		reg_val |= (0x1U<<0);
@@ -661,11 +661,11 @@ __s32 _close_spic_ahb_gate_and_reset_v1(__u32 spinand_index)
 	1. release ahb reset and open ahb clock gate for ndfc version 1.
 	*/
 	if (spinand_index == 0) {
-		// reset
+		/* reset */
 		reg_val = get_wvalue(NAND_CLK_BASE_ADDR + 0x096c);
 		reg_val &= (~(0x1U<<16));
 		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c),reg_val);
-		// ahb clock gate
+		/* ahb clock gate */
 		reg_val = get_wvalue(NAND_CLK_BASE_ADDR + 0x096c);
 		reg_val &= (~(0x1U<<0));
 		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c),reg_val);
@@ -869,7 +869,7 @@ int NAND_GetClk(__u32 nand_index, __u32 *pnand_clk0, __u32 *pnand_clk1)
 			}
 		}
 	} else {
-		NAND_Print("NAND_SetClk, wrong ndfc version, %d\n", ndfc_version);
+		NAND_Print("NAND_GetClk, wrong ndfc version, %d\n", ndfc_version);
 		return -1;
 	}
 

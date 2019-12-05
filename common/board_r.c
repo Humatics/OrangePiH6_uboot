@@ -355,7 +355,9 @@ static int initr_env(void)
 	if (should_load_env())
 		env_relocate();
 	else
+	{
 		set_default_env(NULL);
+	}
 
 	/* Initialize from environment */
 	load_addr = getenv_ulong("loadaddr", 16, load_addr);
@@ -622,6 +624,10 @@ static int initr_sunxi_flash(void)
 #ifdef CONFIG_SUNXI_UBIFS
 		sunxi_nand_mtd_init();
 #endif
+
+#if defined(DISABLE_SUNXI_MBR) && defined(CONFIG_SUN8IW12P1_NOR)
+		initr_env();
+#endif
 		sunxi_partition_init();
 	}
 
@@ -641,6 +647,7 @@ static int platform_dma_init(void)
 #endif
 	return 0;
 }
+
 static int usb_net_init(void)
 {
 #if defined(CONFIG_CMD_NET)
@@ -741,12 +748,23 @@ init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_AUTO_UPDATE
 	auto_update_check,
 #endif
+
+#ifndef DISABLE_SUNXI_MBR
 	initr_env,
+#else
+#ifndef CONFIG_SUN8IW12P1_NOR
+	initr_env,
+#endif
+#endif
 	detect_part_back_work_base,
 	initr_sunxi_base,
 
 #ifdef CONFIG_WIDEVINE_KEY_INSTALL
 	sunxi_widevine_keybox_install,
+#endif
+
+#ifdef CONFIG_ARCH_SUN50IW6P1
+	verify_init,
 #endif
 
 #ifndef CONFIG_SUNXI_MULITCORE_BOOT

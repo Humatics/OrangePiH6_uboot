@@ -16,6 +16,10 @@ struct sunxi_disp_source_ops
 	int (*sunxi_lcd_dsi_dcs_write)(unsigned int scree_id, unsigned char command, unsigned char *para, unsigned int para_num);
 	int (*sunxi_lcd_dsi_gen_write)(unsigned int scree_id, unsigned char command, unsigned char *para, unsigned int para_num);
 	int (*sunxi_lcd_dsi_clk_enable)(u32 screen_id, u32 en);
+	s32 (*sunxi_lcd_dsi_gen_short_read)(u32 sel, u8 *para_p, u8 para_num, u8 *result);
+	s32 (*sunxi_lcd_dsi_dcs_read)(u32 sel, u8 cmd, u8 *result, u32 *num_p);
+	s32 (*sunxi_lcd_dsi_set_max_ret_size)(u32 sel, u32 size);
+	int (*sunxi_lcd_dsi_mode_switch)(unsigned int scree_id, u32 cmd_en, u32 lp_en);
 	int (*sunxi_lcd_backlight_enable)(unsigned int screen_id);
 	int (*sunxi_lcd_backlight_disable)(unsigned int screen_id);
 	int (*sunxi_lcd_pwm_enable)(unsigned int screen_id);
@@ -92,6 +96,14 @@ s32 bsp_disp_tv_resume(void);
 extern s32   dsi_dcs_wr(u32 sel, u8 cmd, u8* para_p, u32 para_num);
 extern s32   dsi_gen_wr(u32 sel,u8 cmd,u8* para_p,u32 para_num);
 extern s32   dsi_clk_enable(u32 sel, u32 en);
+s32 bsp_disp_lcd_dsi_clk_enable(u32 disp, u32 en);
+s32 bsp_disp_lcd_dsi_dcs_wr(u32 disp, u8 command, u8 *para, u32 para_num);
+s32 bsp_disp_lcd_dsi_gen_wr(u32 disp, u8 command, u8 *para, u32 para_num);
+s32 bsp_disp_lcd_dsi_mode_switch(u32 screen_id, u32 cmd_en, u32 lp_en);
+s32 bsp_disp_lcd_dsi_dcs_read(u32 sel, u8 cmd, u8 *result, u32 *num_p);
+s32 bsp_disp_lcd_set_max_ret_size(u32 sel, u32 size);
+s32 bsp_disp_lcd_dsi_gen_short_read(u32 sel, u8 *para_p, u8 para_num,
+				    u8 *result);
 
 extern struct disp_manager* disp_get_layer_manager(u32 disp);
 

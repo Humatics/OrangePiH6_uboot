@@ -21,6 +21,7 @@
 #include "common.h"
 #include "asm/io.h"
 #include "asm/arch/efuse.h"
+#include <asm/arch/base_pmu.h>
 
 #define SID_OP_LOCK  (0xAC)
 
@@ -83,8 +84,9 @@ void sid_program_key(uint key_index, uint key_value)
 {
 	uint reg_val;
 
-	writel(key_value, SID_PRKEY);
+	set_efuse_voltage(1900);
 
+	writel(key_value, SID_PRKEY);
 	reg_val = readl(SID_PRCTL);
 	reg_val &= ~((0x1ff<<16)|0x3);
 	reg_val |= key_index<<16;
@@ -98,6 +100,8 @@ void sid_program_key(uint key_index, uint key_value)
 
 	reg_val &= ~((0x1ff<<16)|(0xff<<8)|0x3);
 	writel(reg_val, SID_PRCTL);
+
+	set_efuse_voltage(1800);
 
 	return;
 }

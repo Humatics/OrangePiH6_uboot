@@ -17,8 +17,10 @@ int pmu_type;
 #define dbg(format,arg...)	printf(format,##arg)
 
 #define DUMMY_MODE		(1)
-#define VDD_SYS_VOL		(960)
 #define VOL_ON			(1)
+#define EFUSE_TF_ZONE		(0x1c)
+#define BIN_OFFSET		(5)
+#define BIN_MASK		(7)
 
 static int axp_probe(void)
 {
@@ -167,6 +169,28 @@ static int axp806_set_dcdcd(int set_vol, int onoff)
 	return 0;
 }
 
+static void set_vdd_sys_by_bin(void)
+{
+	u32 bin;
+	int set_vol;
+
+	bin = (sid_read_key(EFUSE_TF_ZONE) >> BIN_OFFSET) & BIN_MASK;
+	switch (bin)  {
+	case 0b001:
+		set_vol = 980;
+		break;
+	case 0b011:
+		set_vol = 940;
+		break;
+	case 0b010:
+	default:
+		set_vol = 960;
+		break;
+	}
+	printf("vdd-sys vol:%dmv\n", set_vol);
+	axp806_set_dcdcd(set_vol, VOL_ON);
+
+}
 
 int probe_power_key(void)
 {
@@ -233,6 +257,10 @@ int axp_set_aldo3(int set_vol, int onoff)
 static void sunxi_set_all_cpu_off(void)
 {
 	int off = 0, cluster = 0;
+	u32 value;
+	value = readl(SUNXI_CLUSTER_PWROFF_GATING(0));
+	value |= ((0x1<<1)|(0x1<<2)|(0x1<<3));
+	writel(value, SUNXI_CLUSTER_PWROFF_GATING(0));
 	cpu_power_switch_set(cluster, 1, off);
 	cpu_power_switch_set(cluster, 2, off);
 	cpu_power_switch_set(cluster, 3, off);
@@ -262,7 +290,7 @@ int pmu_init(u8 power_mode)
 	if (AXP806_ADDR == pmu_type) {
 		disable_pmu_pfm_mode();
 		/*set vdd-sys before dram init*/
-		axp806_set_dcdcd(VDD_SYS_VOL, VOL_ON);
+		set_vdd_sys_by_bin();
 	}
 
 	return pmu_type;

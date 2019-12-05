@@ -6,6 +6,7 @@ extern __s32 boot_set_gpio(void  *user_gpio_list, __u32 group_count_max, __s32 s
 extern void mmu_setup(u32 dram_size);
 extern void  mmu_turn_off( void );
 extern int load_boot1(void);
+extern int load_kernel(void);
 extern void set_dram_para(void *dram_addr , __u32 dram_size, __u32 boot_cpu);
 extern void boot0_jump(unsigned int addr);
 extern void boot0_jmp_boot1(unsigned int addr);
@@ -16,6 +17,8 @@ extern int load_fip(int *use_monitor);
 extern int set_debugmode_flag(void);
 extern void set_pll( void );
 extern void update_flash_para(void);
+extern int checking_tcxo(void);
+
 
 
 extern int printf(const char *fmt, ...);

@@ -28,6 +28,7 @@
 #include <sys_config.h>
 #include <sys_config_old.h>
 #include <fdt_support.h>
+#include <malloc.h>
 
 #include "sunxi-ir.h"
 #include "asm/arch/timer.h"
@@ -40,6 +41,8 @@ struct timer_list ir_timer_t;
 static int ir_boot_recovery_mode = 0;
 extern struct ir_raw_buffer sunxi_ir_raw;
 static int ir_detect_time = 1500;
+static u32 *code_store = NULL;
+static int code_num = 0;
 
 static int ir_sys_cfg(void)
 {
@@ -75,6 +78,7 @@ static int ir_sys_cfg(void)
 			break;
 		}
 		ir_data.ir_recoverykey[i] = value;
+                printf("key_code = %s, value = %d\n", addr_name, value);
 	}
 	ir_data.ir_addr_cnt = i;
 
@@ -85,8 +89,52 @@ static int ir_sys_cfg(void)
 			break;
 		}
 		ir_data.ir_addr[i] = value;
+                printf("addr_code = %s, value = %d\n", addr_name, value);
+
+                if (NULL == code_store) {
+                    code_store = (u32 *)malloc(ir_data.ir_addr_cnt);
+                    if (NULL == code_store) {
+                        printf("%s: malloc fail!\n", __func__);
+                        return -1;
+                    }
+                }
+                sprintf(addr_name, "ir_recovery_key_code%d", i);
+		if (script_parser_fetch("ir_boot_recovery", addr_name, (int *)&value, 1)) {
+			break;
+		}
+                code_num++;
+		code_store[i] = value;
+                printf("key_code = %s, value = %d\n", addr_name, value);
+                debug("code num = %d\n", code_num);
 	}
 	return 0;
+}
+
+static int ir_code_detect_no_duplicate(struct sunxi_ir_data *ir_data, u32 code)
+{
+        int key_no_duplicate;
+        if (script_parser_fetch("ir_boot_recovery", "ir_key_no_duplicate", (int *)&key_no_duplicate, 1)) {
+                printf("ir_key_no_duplicate get fail, use defualt mode!\n");
+                return 0;
+	}
+
+        if ( key_no_duplicate == 0) {
+                printf("[ir recovery]: do not use key duplicate mode!\n");
+                return 0;
+        } else {
+                printf("[ir recovery]: use key duplicate mode!\n");
+        }
+
+        int i;
+        for (i = 0; i < code_num; i++){
+                if ((code & 0xff) == code_store[i]) {
+                        debug("In %s: code_store = %d\n", __func__,code_store[i]);
+                        code_store[i] = 0;
+                        return 0;
+                }
+        }
+
+        return -1;
 }
 
 static int ir_code_valid(struct sunxi_ir_data *ir_data, u32 code)
@@ -96,12 +144,10 @@ static int ir_code_valid(struct sunxi_ir_data *ir_data, u32 code)
 	for (i = 0; i < ir_data->ir_addr_cnt; i++) {
 		if (ir_data->ir_addr[i] == tmp) {
 			if ((code & 0xff) == ir_data->ir_recoverykey[i]) {
-			//	printf("ir boot recovery detect\n");
-				return 0;
+				return ir_code_detect_no_duplicate(ir_data, code);
 			}
 
 			printf("ir boot recovery not detect, code=0x%x, coded=0x%x\n", code, ir_data->ir_recoverykey[i]);
-			return -1;
 		}
 	}
 

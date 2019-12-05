@@ -89,13 +89,13 @@ efuse_err_e;
 */
 int sunxi_efuse_write(void *key_buf);
 
-/* breif:: sunxi_efuse_read: unify api to read Efuse key map.
+/* breif: unify api to read Efuse key map.
 *In param:key_name
-*In param:rd_buf:array to store the keydata.You must take note of no overflow.
-*return value : (>0) means the real lenth of read data;
-*other value means err number:Please reference efuse_err_e to get detail.
+*In param:rd_buf,should be aligned to 4Byte.
+*return value : 0-success; other-fail
+*is err number:ref efuse_err_e
 */
-int sunxi_efuse_read(void *key_name, void *rd_buf);
+int sunxi_efuse_read(void *key_name, void *rd_buf, int *len);
 
 /*reference this struct when call api:sunxi_efuse_write*/
 typedef struct

@@ -115,6 +115,7 @@ int load_fip(int *use_monitor)
 	struct sbrom_toc1_head_info  *toc1_head = NULL;
 	struct sbrom_toc1_item_info  *item_head = NULL;
 	struct sbrom_toc1_item_info  *toc1_item = NULL;
+	__maybe_unused u32 addr;
 
 	toc1_head = (struct sbrom_toc1_head_info *)CONFIG_BOOTPKG_STORE_IN_DRAM_BASE;
 	item_head = (struct sbrom_toc1_item_info *)(CONFIG_BOOTPKG_STORE_IN_DRAM_BASE + sizeof(struct sbrom_toc1_head_info));
@@ -167,9 +168,39 @@ int load_fip(int *use_monitor)
 			toc1_flash_read((toc1_item->data_offset+0x18000)/512, SCP_DRAM_SIZE/512, (void *)SCP_DRAM_BASE);
 			memcpy((void *)(SCP_SRAM_BASE+HEADER_OFFSET+SCP_DRAM_PARA_OFFSET),dram_para_addr,SCP_DARM_PARA_NUM * sizeof(int));
 		}
+#ifdef CONFIG_SUNXI_MULITCORE_BOOT
+		else if (strncmp(toc1_item->name, ITEM_LOGO_NAME,
+				sizeof(ITEM_LOGO_NAME)) == 0) {
+				addr = SUNXI_LOGO_COMPRESSED_LOGO_SIZE_ADDR;
+			*(uint *)addr = toc1_item->data_len;
+			toc1_flash_read(toc1_item->data_offset/512,
+				(toc1_item->data_len+511)/512,
+				(void *)SUNXI_LOGO_COMPRESSED_LOGO_BUFF);
+		} else if (strncmp(toc1_item->name,
+				ITEM_SHUTDOWNCHARGE_LOGO_NAME,
+				sizeof(ITEM_SHUTDOWNCHARGE_LOGO_NAME)) == 0) {
+			addr = SUNXI_SHUTDOWN_CHARGE_COMPRESSED_LOGO_SIZE_ADDR;
+			*(uint *)(addr) = toc1_item->data_len;
+			toc1_flash_read(toc1_item->data_offset/512,
+			(toc1_item->data_len+511)/512,
+			(void *)SUNXI_SHUTDOWN_CHARGE_COMPRESSED_LOGO_BUFF);
+		} else if (strncmp(toc1_item->name,
+				ITEM_ANDROIDCHARGE_LOGO_NAME,
+				sizeof(ITEM_ANDROIDCHARGE_LOGO_NAME)) == 0) {
+			addr = SUNXI_ANDROID_CHARGE_COMPRESSED_LOGO_SIZE_ADDR;
+			*(uint *)(addr) = toc1_item->data_len;
+			toc1_flash_read(toc1_item->data_offset/512,
+			(toc1_item->data_len+511)/512,
+			(void *)SUNXI_ANDROID_CHARGE_COMPRESSED_LOGO_BUFF);
+		}
+#endif
 		else if(strncmp(toc1_item->name, ITEM_DTB_NAME, sizeof(ITEM_DTB_NAME)) == 0)
 		{
+#ifdef BOOT0_JUMP_KERNEL
+			toc1_flash_read(toc1_item->data_offset/512, (toc1_item->data_len+511)/512, (void *)CONFIG_SUNXI_FDT_ADDR);
+#else
 			toc1_flash_read(toc1_item->data_offset/512, (toc1_item->data_len+511)/512, (void *)CONFIG_DTB_STORE_IN_DRAM_BASE);
+#endif
 		}
 		else if(strncmp(toc1_item->name, ITEM_SOCCFG_NAME, sizeof(ITEM_SOCCFG_NAME)) == 0)
 		{

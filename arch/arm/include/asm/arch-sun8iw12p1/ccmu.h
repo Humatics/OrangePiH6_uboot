@@ -141,5 +141,20 @@
 #define AXI_BUS         (0)
 #define AHB1_BUS0       (1)
 
+/* ehci */
+#define CCMU_USB0_CLK				0x0a70
+#define CCMU_USB1_CLK				0x0a74
+#define CCMU_USB_BUS_GATING_RST			0x0a8c
+
+#define USBEHCI0_RST_BIT 20
+#define USBEHCI0_GATIING_BIT 4
+#define USBPHY0_RST_BIT 30
+#define USBPHY0_SCLK_GATING_BIT 29
+
+#define USBEHCI1_RST_BIT 21
+#define USBEHCI1_GATIING_BIT 5
+#define USBPHY1_RST_BIT 30
+#define USBPHY1_SCLK_GATING_BIT 29
+
 #endif
 

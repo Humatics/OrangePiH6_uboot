@@ -33,11 +33,13 @@ BOOT0_HEAD  := sunxi_spl/boot0/boot0_head.o
 START       := sunxi_spl/boot0/boot0_entry.o
 
 LIBS-y += sunxi_spl/boot0/spl/libsource_spl.o
-LIBS-y += sunxi_spl/boot0/main/libmain.o
+#LIBS-y += sunxi_spl/boot0/main/libmain.o
 LIBS-y += sunxi_spl/boot0/libs/libgeneric.o
 LIBS-y += sunxi_spl/spl/lib/libgeneric.o
 LIBS-y += sunxi_spl/dram/$(SOC)/dram/libdram.o
 LIBS-$(CONFIG_SUNXI_HDMI_IN_BOOT0) += sunxi_spl/display/hdmi/libdisplay.o
+LIBS-$(CONFIG_ARCH_SUN8IW12P1) += sunxi_spl/common_mix/libcommon_mix.o
+
 
 LIBS-$(CONFIG_SUNXI_CHIPID) += sunxi_spl/dram/$(SOC)/dram/libchipid.o
 LIBS := $(addprefix $(SPLBASE)/,$(sort $(LIBS-y)))
@@ -45,17 +47,21 @@ LIBS := $(addprefix $(SPLBASE)/,$(sort $(LIBS-y)))
 LIBNAND-$(CONFIG_STORAGE_MEDIA_NAND) += $(SPLBASE)/sunxi_spl/boot0/load_nand/libloadnand.o
 LIBNAND-$(CONFIG_STORAGE_MEDIA_NAND) += $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/$(SOC)/nand/libnand.o
 LIBNAND-$(CONFIG_STORAGE_MEDIA_SPINAND) += $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/$(SOC)/spinand/libspinand.o
+LIBNAND-y += $(SPLBASE)/sunxi_spl/boot0/main/libmain.o
 
 LIBNAND := $(LIBNAND-y)
 
 LIBMMC-$(CONFIG_STORAGE_MEDIA_MMC) += $(SPLBASE)/sunxi_spl/boot0/load_mmc/libloadmmc.o
 LIBMMC-$(CONFIG_STORAGE_MEDIA_MMC) += $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/$(SOC)/mmc/libmmc.o
+LIBMMC-y += $(SPLBASE)/sunxi_spl/boot0/main/libmain_mmc.o
 
 LIBMMC := $(LIBMMC-y)
 
 
 LIBSPINOR-$(CONFIG_STORAGE_MEDIA_SPINOR) += $(SPLBASE)/sunxi_spl/boot0/load_spinor/libloadspinor.o
 LIBSPINOR-$(CONFIG_STORAGE_MEDIA_SPINOR) += $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/$(SOC)/spinor/libspinor.o
+LIBSPINOR-$(CONFIG_STORAGE_MEDIA_SPINOR) += $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/sunxi_spl_common/libdma.o
+LIBSPINOR-y += $(SPLBASE)/sunxi_spl/boot0/main/libmain_nor.o
 
 LIBSPINOR := $(LIBSPINOR-y)
 
@@ -92,21 +98,21 @@ $(obj)boot0_nand.bin:	$(obj)boot0_nand.axf $(obj)cur.log
 	@$(SPLDIR)/../add_hash.sh -f $(SPLDIR)/boot0/boot0_nand.bin -m boot0
 
 $(obj)boot0_nand.axf:  $(LIBS) $(LIBNAND) $(obj)boot0.lds
-	$(LD) $(LIBS) $(LIBNAND) $(PLATFORM_LIBGCC) $(LDFLAGS) $(LDFLAGS_boot0) -T$(obj)boot0.lds -o boot0_nand.axf -Map boot0_nand.map
+	$(LD) $(LIBNAND) $(LIBS) $(PLATFORM_LIBGCC) $(LDFLAGS) $(LDFLAGS_boot0) -T$(obj)boot0.lds -o boot0_nand.axf -Map boot0_nand.map
 
 $(obj)boot0_sdcard.bin:	$(obj)boot0_sdcard.axf $(obj)cur.log
 	$(OBJCOPY) $(OBJCFLAGS) -O binary  $< $@
 	@$(SPLDIR)/../add_hash.sh -f $(SPLDIR)/boot0/boot0_sdcard.bin -m boot0
 
 $(obj)boot0_sdcard.axf:  $(LIBS) $(LIBMMC) $(obj)boot0.lds
-	$(LD) $(LIBS) $(LIBMMC)  $(PLATFORM_LIBGCC) $(LDFLAGS) $(LDFLAGS_boot0) -T$(obj)boot0.lds -o boot0_sdcard.axf -Map boot0_sdcard.map
+	$(LD) $(LIBMMC) $(LIBS) $(PLATFORM_LIBGCC) $(LDFLAGS) $(LDFLAGS_boot0) -T$(obj)boot0.lds -o boot0_sdcard.axf -Map boot0_sdcard.map
 
 $(obj)boot0_spinor.bin:	$(obj)boot0_spinor.axf $(obj)cur.log
 	$(OBJCOPY) $(OBJCFLAGS) -O binary  $< $@
 	@$(SPLDIR)/../add_hash.sh -f $(SPLDIR)/boot0/boot0_spinor.bin -m boot0
 
 $(obj)boot0_spinor.axf:  $(LIBS) $(LIBSPINOR) $(obj)boot0.lds
-	$(LD) $(LIBS) $(LIBSPINOR)  $(PLATFORM_LIBGCC) $(LDFLAGS) $(LDFLAGS_boot0) -T$(obj)boot0.lds -o boot0_spinor.axf -Map boot0_spinor.map
+	$(LD) $(LIBSPINOR) $(LIBS) $(PLATFORM_LIBGCC) $(LDFLAGS) $(LDFLAGS_boot0) -T$(obj)boot0.lds -o boot0_spinor.axf -Map boot0_spinor.map
 
 $(LIBS): depend
 	$(MAKE) -C $(SRCTREE)$(dir $(subst $(OBJTREE),,$@))

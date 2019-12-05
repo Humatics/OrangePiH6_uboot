@@ -39,6 +39,7 @@ obj-y += qsort.o
 obj-$(CONFIG_SHA1) += sha1.o
 obj-$(CONFIG_SUPPORT_EMMC_RPMB) += sha256.o
 obj-$(CONFIG_SHA256) += sha256.o
+obj-$(CONFIG_SHA512) += sha512.o
 obj-y	+= strmhz.o
 obj-$(CONFIG_TPM) += tpm.o
 obj-$(CONFIG_RBTREE)	+= rbtree.o

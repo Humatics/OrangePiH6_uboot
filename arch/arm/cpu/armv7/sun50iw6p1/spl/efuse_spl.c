@@ -42,25 +42,11 @@
 */
 uint sid_read_key(uint key_index)
 {
-	uint reg_val;
+	uint key_val;
 
-	reg_val = readl(SID_PRCTL);
-	reg_val &= ~((0x1ff<<16)|0x3);
-	reg_val |= key_index<<16;
-	writel(reg_val, SID_PRCTL);
+	memcpy((void *)&key_val, (void *)(SUNXI_SID_SRAM + key_index), 4);
 
-	reg_val &= ~((0xff<<8)|0x3);
-	reg_val |= (SID_OP_LOCK<<8) | 0x2;
-	writel(reg_val, SID_PRCTL);
-
-	while(readl(SID_PRCTL)&0x2){};
-
-	reg_val &= ~((0x1ff<<16)|(0xff<<8)|0x3);
-	writel(reg_val, SID_PRCTL);
-
-	reg_val = readl(SID_RDKEY);
-
-	return reg_val;
+	return key_val;
 }
 
 /*
@@ -194,4 +180,10 @@ int sid_prode_key_ladder(void)
 	}
 	return 0;
 
+}
+
+int sid_jtag_shut_perm(void)
+{
+	sid_program_key(SID_JTAG_ATTR_ADDR, SID_JTAG_LOCK_PERM);
+	return 0;
 }

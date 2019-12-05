@@ -34,18 +34,6 @@ static hal_fb_dev_t *get_fb_dev(unsigned int fb_id)
 	}
 }
 
-static void save_boot_disp_to_uenv(const char * keyname, int disp_para)
-{
-	char val_buff[8] = {0};
-
-	sprintf(val_buff, "%x", disp_para);	
-	printf("keyname = %s, val_buff = %s\n", keyname, val_buff);
-
-	setenv(keyname, val_buff);
-	
-	return;
-}
-
 int hal_switch_device(disp_device_t *device, unsigned int fb_id)
 {
 	int disp_para0, disp_para1 = 0, disp_para2 = 0;
@@ -74,13 +62,10 @@ int hal_switch_device(disp_device_t *device, unsigned int fb_id)
 	hal_save_int_to_kernel("boot_disp", disp_para0);
 	hal_save_int_to_kernel("boot_disp1", disp_para1);
 	hal_save_int_to_kernel("boot_disp2", disp_para2);
-	save_boot_disp_to_uenv("boot_disp", disp_para0);
-	save_boot_disp_to_uenv("boot_disp1", disp_para1);
-	save_boot_disp_to_uenv("boot_disp2", disp_para2);
-	
+
 	printf("switch device: sel=%d, type=%d, mode=%d, format=%d, bits=%d, eotf=%d, cs=%d\n",
 			device->screen_id, device->type, device->mode,device->format,device->bits,device->eotf,device->cs);
-	
+
 	fb_dev = get_fb_dev(fb_id);
 	if (NULL == fb_dev) {
 		printf("this device can not be bounded to fb(%d)", fb_id);
@@ -274,3 +259,4 @@ int hal_show_layer(void *handle, char is_show)
 	}
 	return 0;
 }
+

@@ -39,7 +39,6 @@
 #define PMU_SHORT_KEY_PRESSED      (1<<1)
 #define PMU_LONG_KEY_PRESSED       (1<<0)
 
-#define DC_MODE_EXIST	    	   (1)
 #define AXP_VBUS_EXIST             (2)
 #define AXP_DCIN_EXIST             (3)
 #define AXP_VBUS_DCIN_NOT_EXIST		(4)
@@ -95,6 +94,7 @@ typedef enum _VBUS_TYPE
 #define PMU_SUPPLY_GPIO0		(0x00090000)
 #define PMU_SUPPLY_GPIO1		(0x00090001)
 
+extern void sunxi_axp_dummy_init(void);
 extern int axp_probe(void);
 extern int axp_probe_id(int pmu_id);
 extern int axp_reinit(void);
@@ -119,6 +119,10 @@ extern int axp_probe_key(void);
 extern int axp_probe_dcin_exist(void);
 extern int axp_probe_battery_exist(void);
 extern int axp_probe_battery_vol(void);
+#ifdef CONFIG_SUN8IW12P1_NOR
+extern int axp_probe_battery_ocv_vol(void);
+extern int axp_set_led_control(int);
+#endif
 
 extern int axp_probe_charge_current(void);
 extern int axp_set_charge_current(int current);
@@ -151,5 +155,6 @@ extern int axp_probe_vbus_cur_limit(void);
 
 extern int axp_set_coulombmeter_onoff(int onoff );
 extern int axp_probe_vbus_type(void);
+extern int set_sunxi_gpio_power_bias(void);
 
 #endif	/* _PMU_H_ */

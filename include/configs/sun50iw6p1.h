@@ -28,7 +28,7 @@
 
 #define CONFIG_MACH_TYPE  0xffffffff
 #define CONFIG_TARGET_NAME      sun50iw6p1
-
+#define SUNXI_NCAT_VERSION1
 
 #define CONFIG_STORAGE_MEDIA_NAND
 #define CONFIG_STORAGE_MEDIA_MMC
@@ -58,6 +58,9 @@
 #define CONFIG_SUNXI_SECURE_STORAGE
 #define CONFIG_SUNXI_SECURE_SYSTEM
 #define CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
+
+//#define CONFIG_DRAM_SCRAMBLE_SUPPORT		/* enable dram scramble */
+//#define CONFIG_JTAG_SHUT_PERM 			/* must check again and again */
 
 #define CONFIG_SYS_SRAM_BASE               (0x20000)
 #define CONFIG_SYS_SRAMA1_BASE             (0x20000)
@@ -251,7 +254,7 @@
  * Reducing the ARP timeout from default 5000UL to 1000UL we speed up the
  * initial TFTP transfer or PING, etc, should the user wish one, significantly.
  */
-#define CONFIG_ARP_TIMEOUT	1000UL
+#define CONFIG_ARP_TIMEOUT	3000UL
 
 
 /*
@@ -263,7 +266,7 @@
 #define CONFIG_SYS_PROMPT		"sunxi#"
 #define CONFIG_SYS_CBSIZE	256			/* Console I/O Buffer Size */
 #define CONFIG_SYS_PBSIZE	384			/* Print Buffer Size */
-#define CONFIG_SYS_MAXARGS	25			/* max number of command args */
+#define CONFIG_SYS_MAXARGS	32			/* max number of command args */
 #define CONFIG_CMD_BOOTI
 
 /* Boot Argument Buffer Size */
@@ -310,8 +313,8 @@
 	"kernel_addr=4007ffc0\0" \
 	"orangepi_mode=orangepi\0" \
 	"initrd_addr=44300000\0" \
-	"kernel_filename=orangepi/uImage\0" \
-	"fdt_filename_prefix=orangepi/OrangePiH6\0" \
+	"kernel_filename=uImage\0" \
+	"fdt_filename_prefix=H6\0" \
 	"fdt_filename_suffix=.dtb\0" \
 	"initrd_filename=initrd.img\0" \
 	"bootenv_filename=uEnv.txt\0" \
@@ -350,7 +353,7 @@
 	"scriptboot=source ${load_addr}\0" \
 	"set_cmdline=" \
                 "setenv bootargs console=${console} ${optargs} " \
-                "earlyprintk=sunxi-uart,0x05000000  " \
+                "earlyprintk=sunxi-uart,0x05000000 " \
                 "root=${root} ro " \
 		"rootwait\0" \
 	"mmcbootcmd=" \
@@ -436,8 +439,9 @@
 *
 ***************************************************************/
 
-//#define CONFIG_CMD_BOOTA		/* boot android image */
-#define CONFIG_CMD_BOOTI        /* boot Linux image */
+#define CONFIG_FIT				/* boot linux image */
+
+#define CONFIG_CMD_BOOTI		/* boot android image */
 #define CONFIG_CMD_RUN			/* run a command */
 #define CONFIG_CMD_BOOTD		/* boot the default command */
 #define CONFIG_CMD_FDT
@@ -463,6 +467,7 @@
 
 #ifdef CONFIG_SUNXI_MODULE_SDMMC
 /* mmc config */
+//#define CONFIG_MMC_BOOT_START			/* boot start form mmc boot part */
 #define CONFIG_MMC
 #define CONFIG_GENERIC_MMC
 #define CONFIG_CMD_MMC
@@ -485,8 +490,8 @@
 #ifdef CONFIG_SUNXI_MODULE_DISPLAY
 #define CONFIG_SUNXI_DISPLAY
 #define CONFIG_VIDEO_SUNXI_V3
-//#define CONFIG_SUNXI_MODULE_HDMI
-//#define CONFIG_SUNXI_MODULE_TV
+#define CONFIG_SUNXI_MODULE_HDMI
+#define CONFIG_SUNXI_MODULE_TV
 #define CONFIG_SUNXI_MODULE_CLK
 #define CONFIG_SUNXI_MODULE_PWM
 #endif
@@ -520,6 +525,16 @@
 #endif
 
 #ifdef CONFIG_SUNXI_MODULE_USB
+#define CONFIG_USBD_HS
+#define CONFIG_USB_EHCI_SUNXI
+/*for usb host*/
+#ifdef CONFIG_USB_EHCI_SUNXI
+	#define CONFIG_EHCI_DCACHE
+	#define CONFIG_CMD_USB
+	#define CONFIG_USB_STORAGE
+	#define CONFIG_USB_EHCI
+#endif
+
 
 //#define CONFIG_USB_ETHER
 #ifdef CONFIG_USB_ETHER
@@ -534,6 +549,7 @@
 #define CONFIG_NET_MULTI
 #define CONFIG_CMD_PING
 #define CONFIG_CMD_NFS
+//#define CONFIG_CMD_TFTPPUT
 #endif
 
 #endif
@@ -569,7 +585,9 @@
 #endif
 #define CONFIG_CMD_NET
 #define CONFIG_CMD_PING
+#define CONFIG_HARD_CHECKSUM
 #define CONFIG_CMD_MII
+#define CONFIG_CMD_TFTPPUT
 #define CONFIG_ETHADDR          72:D6:05:4F:B9:3B
 #define CONFIG_IPADDR           192.168.200.254
 #define CONFIG_SERVERIP         192.168.200.20
@@ -578,5 +596,18 @@
 #endif
 
 #define CONFIG_OTA_UPDATA_KERNEL_ALONE
+
+/* will use GPT partition */
+//#define CONFIG_GPT_SUPPORT
+
+#ifdef CONFIG_GPT_SUPPORT
+#define CONFIG_SUNXI_GPT
+#define CONFIG_EFI_PARTITION
+#define CONFIG_CONVERT_CARD0_TO_GPT
+#endif
+
+#define CONFIG_SHA512 1
+/* support optee25 */
+#define CONFIG_OPTEE25
 
 #endif /* __SUNXI_CONFIG_H */

@@ -35,8 +35,12 @@
 /* the number of TCON_LCD */
 #define DEVICE_LCD_NUM 2
 
-/* #define SUPPORT_DSI */
-#define SUPPORT_SMBL
+#define SUPPORT_DSI
+#define DSI_VERSION_28
+#define CLK_NUM_PER_DSI 2
+
+#define DEVICE_DSI_NUM 2
+/* #define SUPPORT_SMBL */
 #define SUPPORT_ATW
 /* #define SUPPORT_HDMI */
 /* #define DSI_VERSION_40 */
@@ -72,7 +76,7 @@
 #define SUPPORT_CDC
 /* databit & yuv format conversion(yuv444/422/420) */
 #define SUPPORT_FORMATTER
- #define SUPPORT_HDMI 
+#define SUPPORT_HDMI
 /* #define DSI_VERSION_40 */
 #define HAVE_DEVICE_COMMON_MODULE
 #define DEVICE_COMMON_VERSION2
@@ -114,6 +118,18 @@
 
 #endif
 
+/*common macro define*/
+
+#ifndef CLK_NUM_PER_DSI
+#define CLK_NUM_PER_DSI 1
+#endif
+
+#ifndef DEVICE_DSI_NUM
+#define DEVICE_DSI_NUM 1
+#endif /*endif DEVICE_DSI_NUM */
+
+/* total number of DSI clk */
+#define CLK_DSI_NUM  (CLK_NUM_PER_DSI * DEVICE_DSI_NUM)
 struct de_feat {
 	const int num_screens;
 	/* indicate layer manager number */

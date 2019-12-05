@@ -622,6 +622,22 @@ typedef struct
 	unsigned int hstx_ana1;
 }__disp_dsi_dphy_timing_t;
 
+/**
+ * lcd tcon mode(dual tcon drive dual dsi)
+ */
+enum disp_lcd_tcon_mode {
+	DISP_TCON_NORMAL_MODE = 0,
+	DISP_TCON_MASTER_SYNC_AT_FIRST_TIME,
+	DISP_TCON_MASTER_SYNC_EVERY_FRAME,
+	DISP_TCON_SLAVE_MODE,
+	DISP_TCON_DUAL_DSI,
+};
+
+enum disp_lcd_dsi_port {
+	DISP_LCD_DSI_SINGLE_PORT = 0,
+	DISP_LCD_DSI_DUAL_PORT,
+};
+
 typedef struct
 {
 	disp_lcd_if              lcd_if;
@@ -646,6 +662,13 @@ typedef struct
 	unsigned int             lcd_dsi_eotp;
 	unsigned int             lcd_dsi_vc;
 	disp_lcd_te              lcd_dsi_te;
+	enum disp_lcd_dsi_port  lcd_dsi_port_num;
+	enum disp_lcd_tcon_mode  lcd_tcon_mode;
+	unsigned int             lcd_slave_stop_pos;
+	unsigned int             lcd_sync_pixel_num;
+	unsigned int             lcd_sync_line_num;
+	unsigned int             lcd_slave_tcon_num;
+	unsigned int             lcd_tcon_en_odd_even;
 
 	unsigned int             lcd_dsi_dphy_timing_en;
 	__disp_dsi_dphy_timing_t*	lcd_dsi_dphy_timing_p;
@@ -708,6 +731,7 @@ typedef enum
 	DISP_MOD_DSI0,
 	DISP_MOD_DSI1,
 	DISP_MOD_DSI2,
+	DISP_MOD_DSI3,
 	DISP_MOD_HDMI,
 	DISP_MOD_LVDS,
 	DISP_MOD_EINK,

@@ -304,8 +304,8 @@ static int axp809_set_dcdc2(int set_vol, int onoff)
 static int axp809_probe_dcdc2(void)
 {
     u8  reg_value;
-
-        if(axp_i2c_read(AXP809_CHIP_ID, BOOT_POWER809_OUTPUT_CTL1, &reg_value))
+	
+	if(axp_i2c_read(AXP809_CHIP_ID, BOOT_POWER809_OUTPUT_CTL1, &reg_value))
     {
 		return -1;
     }
@@ -1718,6 +1718,12 @@ int axp809_set_supply_status_byname(char *vol_name, int vol_value, int onoff)
 	else if(!strncmp(vol_name, "gpio", 4))
 	{
 		sppply_index = simple_strtoul(vol_name + 4, NULL, 10);
+
+		return axp809_set_gpioldo_output(sppply_index, vol_value, onoff);
+	}
+	else if(!strncmp(vol_name, "ldoio", 5))
+	{
+		sppply_index = simple_strtoul(vol_name + 5, NULL, 10);
 
 		return axp809_set_gpioldo_output(sppply_index, vol_value, onoff);
 	}

@@ -87,7 +87,7 @@ static u32 spi_cfg_mclk(u32 spi_no, u32 src, u32 mclk)
 	div = (source_clk + mclk - 1) / mclk;
 	div = div == 0 ? 1 : div;
 	if (div > 128) {
-		m = 2;
+		m = 1;
 		n = 0;
 		SUNXI_DEBUG("Source clock is too high\n");
 	} else if (div > 64) {

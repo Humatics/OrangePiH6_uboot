@@ -52,6 +52,8 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 extern void power_limit_init(void);
+extern int sunxi_arisc_probe(void);
+extern s32 axp809_usb_vbus_output(int hight);
 
 
 extern int sunxi_arisc_probe(void);
@@ -81,6 +83,7 @@ int power_source_init(void)
 
 	if(axp_exist)
 	{
+		set_sunxi_gpio_power_bias();
 		axp_set_charge_vol_limit();
 		axp_set_all_limit();
 		axp_set_hardware_poweron_vol();
@@ -88,7 +91,7 @@ int power_source_init(void)
 		//power_config_gpio_bias();
 		power_limit_init();
 	}
-	sunxi_auto_sel_pio_mode();
+
 	sunxi_clock_set_corepll(uboot_spare_head.boot_data.run_clock);
 
 	pll_cpux = sunxi_clock_get_corepll();
@@ -219,4 +222,22 @@ int sunxi_probe_secure_monitor(void)
 	return uboot_spare_head.boot_data.secureos_exist == SUNXI_SECURE_MODE_USE_SEC_MONITOR?1:0;
 }
 
+int set_efuse_voltage(int vol)
+{
+	return axp_set_supply_status_byname("main", "aldo3", vol, 1);
+}
+s32 axp_usb_vbus_output(void)
+{
+	int vbus_gpio, ret;
+	ret = script_parser_fetch("platform", "boot_usb0_drv_vbus_gpio",
+							(int *)&vbus_gpio, 1);
+	if (ret < 0) {
+		debug("%s:get boot_usb0_drv_vbus_gpio error\n", __func__);
+		vbus_gpio = 0;
+	}
 
+	if (axp809_usb_vbus_output(vbus_gpio) > 0)
+		return 1;
+
+	return 0;
+}

@@ -122,6 +122,7 @@ s32 tcon1_yuv_range(u32 sel, u32 onoff);
 u32 tcon0_get_cpu_tri2_start_delay(u32 sel);
 s32 rgb_src_sel(u32 src);
 s32 tcon1_black_src(u32 sel, u32 on_off, u32 color);
+s32 dsi_src_sel(u32 sel, u32 src);
 
 #if defined(SUPPORT_DSI)
 extern __u32 dsi_pixel_bits[4];

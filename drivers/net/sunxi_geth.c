@@ -45,7 +45,7 @@
 #define CCMU_GMAC_CLK_REG       0x097c
 #define CCMU_GMAC_RST_BIT       16
 #define CCMU_GMAC_GATING_BIT    0
-#elif defined(CONFIG_SUN8IW12P1)
+#elif defined(CONFIG_SUN8IW12P1) || defined(CONFIG_SUN8IW12P1_NOR)
 #define IOBASE                  0x05020000
 #define PHY_CLK_REG             (0x03000000 + 0x30)
 #define CCMU_BASE               0x03001000
@@ -199,6 +199,7 @@ typedef struct dma_desc {
 static struct dma_desc *dma_desc_tx;
 static struct dma_desc *dma_desc_rx;
 static char *rx_packet;
+static char *rx_handle_buf;
 static unsigned int used_type = INT_PHY;
 static phy_interface_t phy_interface = PHY_INTERFACE_MODE_MII;
 static unsigned int phy_addr = 0x1f;
@@ -365,6 +366,12 @@ static int geth_recv(struct eth_device *dev)
        if (rx_p->desc0.rx.own)
                return 0;
 
+       /*
+        * FIXME: to prevent the Rx buffer that we are handling
+        * from being overwrited.
+        */
+       memcpy(rx_handle_buf, rx_packet, 2048);
+
        recv_stat = readl(dev->iobase + GETH_INT_STA);
        if (!(recv_stat & 0x2300))
                goto fill;
@@ -381,7 +388,7 @@ static int geth_recv(struct eth_device *dev)
                pkt_hex_dump("RX", (void *)rx_packet, 64);
 
                flush_cache((long unsigned int)rx_packet, 2048);
-               NetReceive((uchar *)rx_packet, len);
+               NetReceive((uchar *)rx_handle_buf, len);
        } else {
                /* Just need to clear 64 bits header */
                memset(rx_packet, 0, 64);
@@ -414,6 +421,7 @@ static int geth_sys_init(void)
        unsigned char i;
        u32 tx_delay = 0;
        u32 rx_delay = 0;
+       u32 use_ephy_clk = 0;
 
 /* it should be defined in uboot/include/configs/sun?iw?p?.h */
 #ifdef CONFIG_SUNXI_EXT_PHY
@@ -481,6 +489,9 @@ static int geth_sys_init(void)
 			printf("get rx-delay fail!");
 			return -1;
 		}
+
+		if (fdt_getprop_u32(working_fdt, geth_nodeoffset, "use_ephy25m", &use_ephy_clk) < 0)
+		        printf("use_ephy25m is unknown.\n");
 	}
 
        /* Set PHY clock, depend on phy mode */
@@ -504,12 +515,22 @@ static int geth_sys_init(void)
 
        writel(value, PHY_CLK_REG);
 
-#if defined(CONFIG_SUN50IW6P1) || defined(CONFIG_SUN8IW12P1)
+#if defined(CONFIG_SUN50IW6P1) || defined(CONFIG_SUN8IW12P1) || defined(CONFIG_SUN8IW12P1_NOR)
        /* enalbe clk for gmac */
        reg_val = readl(CCMU_BASE + CCMU_GMAC_CLK_REG);
        reg_val |= (1 << CCMU_GMAC_RST_BIT);
        reg_val |= (1 << CCMU_GMAC_GATING_BIT);
        writel(reg_val, CCMU_BASE + CCMU_GMAC_CLK_REG);
+
+#ifdef CONFIG_EPHY_CLK
+       /* enable ephy clk */
+       if (use_ephy_clk == 1) {
+               printf("using ephy_clk...\n");
+               reg_val = readl(CCMU_BASE + CCMU_EPHY_CLK_REG);
+               reg_val |= (1 << CCMU_EPHY_GATING_BIT);
+               writel(reg_val, CCMU_BASE + CCMU_EPHY_CLK_REG);
+       }
+#endif
 #else
        /* enalbe clk for gmac */
        reg_val = readl(CCMU_BASE + AHB1_GATING);
@@ -530,7 +551,7 @@ static int mii_phy_init(struct eth_device *dev)
        u16 phy_val;
        int i = 0;
 
-       for (i=0; i < 2; i++) {
+       for (i=0; i < 32; i++) {
                reg_val = (int)(geth_phy_read(dev, i, MII_PHYSID1) & 0xffff) << 16;
                reg_val |= (int)(geth_phy_read(dev, i, MII_PHYSID2) & 0xffff);
 
@@ -540,26 +561,6 @@ static int mii_phy_init(struct eth_device *dev)
                phy_addr = i;
                break;
        }
-
-#if defined(CONFIG_SUN8IW12P1)
-       if (phy_addr == 0x1f) {
-               printf("using ephy_clk...\n");
-               reg_val = readl(CCMU_BASE + CCMU_EPHY_CLK_REG);
-               reg_val |= (1 << CCMU_EPHY_GATING_BIT);
-               writel(reg_val, CCMU_BASE + CCMU_EPHY_CLK_REG);
-
-               for (i=0; i < 2; i++) {
-                       reg_val = (int)(geth_phy_read(dev, i, MII_PHYSID1) & 0xffff) << 16;
-                       reg_val |= (int)(geth_phy_read(dev, i, MII_PHYSID2) & 0xffff);
-
-                       if ((reg_val & 0x1fffffff) == 0x1fffffff)
-                               continue;
-
-                       phy_addr = i;
-                       break;
-               }
-       }
-#endif
 
        if (used_type == INT_PHY) {
                geth_phy_write(dev, phy_addr, 0x1f, 0x013d);
@@ -660,6 +661,12 @@ static int mii_phy_init(struct eth_device *dev)
        reg_val = readl(dev->iobase + GETH_BASIC_CTL0);
        reg_val |= 0x02;
        writel(reg_val, dev->iobase + GETH_BASIC_CTL0);
+#endif
+
+#if defined(CONFIG_SUN50IW6P1)
+       phy_val = geth_phy_read(dev, phy_addr, 0x13);
+       phy_val |= 1 << 12;        /* XMII RXCLK Inversed */
+       geth_phy_write(dev, phy_addr, 0x13, phy_val);
 #endif
 
        phy_val = geth_phy_read(dev, phy_addr, MII_BMCR);
@@ -792,6 +799,10 @@ int geth_initialize(bd_t *bis)
        if (rx_packet == NULL)
                goto err;
 
+       rx_handle_buf = malloc_noncache(2048);
+       if (rx_handle_buf == NULL)
+               goto err;
+
        /*set random hwaddr for mac */
        random_ether_addr(dev->enetaddr);
 
@@ -816,6 +827,7 @@ int geth_initialize(bd_t *bis)
        return 0;
 
 err:
+       free(rx_packet);
        free(dma_desc_rx);
        free(dma_desc_tx);
        free(dev);

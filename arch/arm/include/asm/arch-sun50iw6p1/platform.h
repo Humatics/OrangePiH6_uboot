@@ -43,6 +43,7 @@
 #define SUNXI_SPINLOCK_BASE                 (0x03004000L)
 #define SUNXI_HSTMR_BASE                    (0x03005000L)
 #define SUNXI_SID_BASE                      (0x03006000L)
+#define SUNXI_SID_SRAM                      (SUNXI_SID_BASE + 0x200)
 #define SUNXI_SMC_BASE                      (0x03007000L)
 #define SUNXI_SPC_BASE                      (0x03008000L)
 #define SUNXI_TIMER_BASE                    (0x03009000L)
@@ -82,7 +83,7 @@
 #define SUNXI_KEYADC_BASE                   SUNXI_LRADC_BASE
 
 #define SUNXI_USBOTG_BASE                   (0x05100000L)
-#define SUNXI_EHCI0_BASE                    (0x05200000L)
+#define SUNXI_EHCI0_BASE                    (0x05101000L)
 #define SUNXI_EHCI1_BASE                    (0x05311000L)
 
 #define SUNXI_LCD0_BASE                     (0x06511000L)

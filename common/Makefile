@@ -50,9 +50,10 @@ obj-$(CONFIG_CMD_SUNXI_TIMER) += cmd_sunxi_timer.o
 obj-$(CONFIG_CMD_SUNXI_EFEX) += cmd_sunxi_efex.o
 obj-$(CONFIG_CMD_SUNXI_SHUTDOWN) += cmd_sunxi_shutdown.o
 obj-$(CONFIG_CMD_SUNXI_MEMTEST) += cmd_sunxi_memtest.o
-ifdef CONFIG_SUNXI_DISPLAY
+#ifdef CONFIG_SUNXI_DISPLAY
 obj-$(CONFIG_CMD_SUNXI_BMP) += cmd_sunxi_bmp.o
-endif
+obj-$(CONFIG_SUNXI_SPINOR_BMP) +=sunxi_load_bmp.o
+#endif
 obj-$(CONFIG_SUNXI_LOAD_JPEG) += sunxi_load_jpeg.o
 
 obj-$(CONFIG_CMD_SUNXI_BURN) += cmd_sunxi_burn.o

@@ -10,6 +10,7 @@ include $(SPLDIR)/config.mk
 LIB	:= $(obj)libloadspinor.o
 
 COBJS-y += load_boot1_from_spinor.o
+COBJS-y += load_kernel_from_spinor.o
 
 SRCS	:= $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS-y))

@@ -35,6 +35,7 @@ int axp_i2c_write(unsigned char chip, unsigned char addr, unsigned char data);
 int pmu_init(u8 power_mode);
 int set_ddr_voltage(int set_vol);
 int set_pll_voltage(int set_vol);
+uint sid_read_key(uint key_index);
 
 
 #endif  /* __BASE_PMU_H_ */

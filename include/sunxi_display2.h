@@ -209,6 +209,8 @@ enum disp_tv_mode
 	DISP_TV_MOD_3840_2160P_50HZ     = 0x24,
 	DISP_TV_MOD_4096_2160P_50HZ     = 0x25,
 	DISP_TV_MOD_2560_1440P_60HZ     = 0x26,
+	DISP_TV_MOD_1440_2560P_70HZ     = 0x27,
+	DISP_TV_MOD_1080_1920P_60HZ	= 0x28,
 	/*
 	 * vga
 	 * NOTE:macro'value of new solution must between

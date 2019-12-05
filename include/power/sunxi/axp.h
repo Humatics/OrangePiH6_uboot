@@ -50,6 +50,9 @@
 #define  SUNXI_AXP_806                   806
 #define  SUNXI_AXP_81X                   81
 #define  SUNXI_AXP_259                   259
+#define  SUNXI_AXP_1506                  1506
+#define  SUNXI_AXP_2585                  2585
+
 
 
 #define  RSB_SADDR_AXP22X	         	(0x3A3)
@@ -84,6 +87,10 @@ typedef struct
 	int (* set_coulombmeter_onoff)(int onoff);
 
 	int (* probe_battery_vol)(void);
+#ifdef CONFIG_SUN8IW12P1_NOR
+	int (* probe_battery_ocv_vol)(void);
+	int (* set_led_control)(int);
+#endif
 	int (* probe_battery_ratio)(void);
 	int (* probe_battery_exist)(void);
 
@@ -105,7 +112,46 @@ typedef struct
 }
 sunxi_axp_dev_t;
 
-
+#ifdef CONFIG_SUN8IW12P1_NOR
+#define  __sunxi_axp_module_init(type, name)						\
+			sunxi_axp_dev_t sunxi_axp_##name =				\
+			{												\
+				type,										\
+				axp##name##_set_supply_status,				\
+				axp##name##_set_supply_status_byname,		\
+				axp##name##_probe_supply_status,			\
+				axp##name##_probe_supply_status_byname,		\
+															\
+				axp##name##_set_next_sys_mode,				\
+				axp##name##_probe_pre_sys_mode,				\
+				axp##name##_probe_this_poweron_cause,		\
+															\
+				axp##name##_probe_power_status,				\
+				axp##name##_set_coulombmeter_onoff,   		\
+															\
+				axp##name##_probe_battery_vol,				\
+				axp##name##_probe_battery_ocv_vol,          \
+				axp##name##_set_led_control,				\
+				axp##name##_probe_battery_ratio,			\
+				axp##name##_probe_battery_exist,			\
+															\
+				axp##name##_probe_key,						\
+															\
+				axp##name##_set_power_off,					\
+				axp##name##_set_power_onoff_vol,			\
+															\
+				axp##name##_set_charge_control,				\
+				axp##name##_set_vbus_cur_limit,				\
+				axp##name##_probe_vbus_cur_limit,           \
+                axp##name##_set_vbus_vol_limit,				\
+				axp##name##_set_charge_current,				\
+				axp##name##_probe_charge_current,			\
+															\
+				axp##name##_probe_int_pending,				\
+				axp##name##_probe_int_enable,				\
+				axp##name##_set_int_enable					\
+			}
+#else
 #define  __sunxi_axp_module_init(type, name)						\
 			sunxi_axp_dev_t sunxi_axp_##name =				\
 			{												\
@@ -134,7 +180,7 @@ sunxi_axp_dev_t;
 				axp##name##_set_charge_control,				\
 				axp##name##_set_vbus_cur_limit,				\
 				axp##name##_probe_vbus_cur_limit,           \
-                axp##name##_set_vbus_vol_limit,				\
+		                axp##name##_set_vbus_vol_limit,				\
 				axp##name##_set_charge_current,				\
 				axp##name##_probe_charge_current,			\
 															\
@@ -142,6 +188,7 @@ sunxi_axp_dev_t;
 				axp##name##_probe_int_enable,				\
 				axp##name##_set_int_enable					\
 			}
+#endif
 
 #define  sunxi_axp_module_init(type, name)  __sunxi_axp_module_init(type, name)
 
@@ -183,6 +230,15 @@ sunxi_axp_module_ext(SUNXI_AXP_NULL);
 #if defined(CONFIG_SUNXI_AXP259)
 	sunxi_axp_module_ext(SUNXI_AXP_259);
 #endif
+
+#if defined(SUNXI_AXP_1506)
+	sunxi_axp_module_ext(SUNXI_AXP_1506);
+#endif
+
+#if defined(SUNXI_AXP_2585)
+	sunxi_axp_module_ext(SUNXI_AXP_2585);
+#endif
+
 
 
 static inline int axp_i2c_read(unsigned char chip, unsigned char addr, unsigned char *buffer)

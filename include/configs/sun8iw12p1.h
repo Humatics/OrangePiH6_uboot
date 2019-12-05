@@ -11,6 +11,8 @@
 
 #include "sunxi-base.h"
 
+#define FC_ADDR 0x42000000
+
 #undef DEBUG
 
 #ifndef __KERNEL__
@@ -19,6 +21,7 @@
 //#define CONFIG_SUNXI_CMD_DMA
 //#define DEBUG
 //#define FPGA_PLATFORM
+#define CONFIG_SUNXI_CRASH
 
 #ifdef CONFIG_SUN8IW12P1_NOR
 #define CONFIG_TARGET_NAME      spinor-sun8iw12p1
@@ -27,7 +30,22 @@
 #endif
 #define CONFIG_ARCH_SUN8IW12P1
 #define CONFIG_ARM_A7
+#define SUNXI_NCAT_VERSION1
+#define CONFIG_SUNXI_CHIPID
 
+/*******for boot0 loader kernel*******/
+//#define BOOT0_LOAD_KERNEL
+//#define BOOT0_JUMP_KERNEL
+#ifdef BOOT0_LOAD_KERNEL
+#define BOOT0_LOAD_KERNEL_START_SECTOR  (32)
+#define BOOT0_LOAD_KERNEL_BUF           (0x45000000)
+#define BOOT0_LOAD_KERNEL_ENTRY         (BOOT0_LOAD_KERNEL_BUF  + 0x40)
+#endif
+
+/*********************************************************************
+ *system clock and other clock
+ **********************************************************************/
+#define APB_24MHZ
 
 /*********************************************************************
  *platform memory map
@@ -123,7 +141,7 @@
 //#define CONFIG_SUNXI_ARISC_EXIST
 //#define CONFIG_SUNXI_MULITCORE_BOOT
 //#define CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-#define CONFIG_BOOTLOGO_DISABLE
+//#define CONFIG_BOOTLOGO_DISABLE
 
 /*********************************************************************
  *module support
@@ -137,7 +155,7 @@
 #define CONFIG_SUNXI_MODULE_USB
 #define CONFIG_SUNXI_PRIVATE_KEY
 #define CONFIG_SUNXI_USER_KEY  /*read keys from secure storage or private*/
-//#define CONFIG_SUNXI_MODULE_DISPLAY
+#define CONFIG_SUNXI_MODULE_DISPLAY
 //#define CONFIG_GPT_SUPPORT
 #else
 #define CONFIG_SUNXI_SPINOR_PLATFORM
@@ -166,6 +184,9 @@
 #define CONFIG_CMD_SUNXI_BURN
 #endif
 #define CONFIG_CMD_SUNXI_MEMTEST
+
+#else
+#define CONFIG_SUNXI_SPINOR_BMP
 #endif
 
 #define CONFIG_SUNXI_PIO_POWER_MODE
@@ -197,7 +218,7 @@
 #define CONFIG_SUNXI_SPI
 #define CONFIG_SUNXI_SPINOR
 #define CONFIG_SPINOR_LOGICAL_OFFSET        ((512 - 16) * 1024/512)
-#define UBOOT_START_SECTOR_IN_SPINOR        (24*1024/512)
+#define UBOOT_START_SECTOR_IN_SPINOR        (32*1024/512)
 #define SPINOR_STORE_BUFFER_SIZE            (2<<20)
 #define CONFIG_STORAGE_MEDIA_SPINOR
 #define ALIGN_SIZE_8K
@@ -240,8 +261,8 @@
 #ifdef CONFIG_SUNXI_MODULE_DISPLAY
 #define CONFIG_SUNXI_DISPLAY
 #define CONFIG_VIDEO_SUNXI_V3
-#define CONFIG_SUNXI_MODULE_HDMI
-#define CONFIG_SUNXI_MODULE_TV
+//#define CONFIG_SUNXI_MODULE_HDMI
+//#define CONFIG_SUNXI_MODULE_TV
 #endif
 
 
@@ -260,8 +281,10 @@
 //#define CONFIG_SUNXI_GETH
 #ifdef CONFIG_SUNXI_GETH
 #define CONFIG_SUNXI_EXT_PHY
+#define CONFIG_EPHY_CLK
 #define CONFIG_CMD_NET
 #define CONFIG_CMD_PING
+#define CONFIG_HARD_CHECKSUM
 #define CONFIG_CMD_MII
 #define CONFIG_ETHADDR         72:D6:05:4F:B9:3B
 #define CONFIG_IPADDR          192.168.200.254
@@ -271,5 +294,14 @@
 #endif
 
 //#define CONFIG_SYS_DCACHE_OFF
+
+/*if open this macro will not use sunxi_mbr ,
+and use "mtdparts=" string stroe partition infromation in env.fex
+if open, please make sure you env partition in the first partition. 
+if open, please make sure kernel support [command line partition table parsing]
+it just apply to SPINOR*/
+
+//#define DISABLE_SUNXI_MBR
+
 
 #endif /* __CONFIG_H */

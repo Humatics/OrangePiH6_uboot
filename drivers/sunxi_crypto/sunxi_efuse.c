@@ -523,7 +523,7 @@ int sunxi_efuse_write(void *key_inf)
 *prepared enough buffer to receive data.
 *Because the lenth of key is exported as MACRO*/
 #define EFUSE_ROUND_UP(x,y)  ((((x) + ((y) - 1)) / (y)) * (y))
-int sunxi_efuse_read(void *key_name, void *rd_buf)
+int sunxi_efuse_read(void *key_name, void *rd_buf, int *len)
 {
 	efuse_key_map_new_t *key_map = g_key_info;
 	uint tmp=0,i=0,k_u32_l=0,bit_lft = 0;
@@ -531,6 +531,8 @@ int sunxi_efuse_read(void *key_name, void *rd_buf)
 	/*if rd_buf not aligned ,u32_p will not be accessed*/
 	unsigned int *u32_p = (unsigned int *)rd_buf;
 	unsigned char *u8_p = (unsigned char *)rd_buf;
+
+	*len = 0;
 	if(!(key_name && rd_buf))
 	{
 		EFUSE_DBG("[efuse] error arg check fail\n");
@@ -586,10 +588,10 @@ int sunxi_efuse_read(void *key_name, void *rd_buf)
 			   EFUSE_ROUND_UP(bit_lft,8));
 		tmp_sz +=EFUSE_ROUND_UP(bit_lft,8);
 	}
+	*len = tmp_sz;
 
-	flush_dcache_range((unsigned long)rd_buf,tmp_sz);
-	return tmp_sz;
-}
+	return 0;
+}	
 
 /*dbg only*/
 void sunxi_efuse_dump(void)

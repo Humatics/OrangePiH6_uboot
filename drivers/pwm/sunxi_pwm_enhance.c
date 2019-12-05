@@ -801,7 +801,7 @@ int pwm_request(int pwm, const char *label)
 	if (!pchip->config) {
 		printf("%s: error:pwm chip malloc failed!\n",__func__);
 		goto err_pwm;
-	}else
+	} else
 		memset(pchip->config, 0, sizeof(struct sunxi_pwm_cfg));
 
 	pchip->pwm = pwm;

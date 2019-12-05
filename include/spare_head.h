@@ -58,9 +58,32 @@
 #define SUNXI_UPDATE_NEXT_ACTION_BOOT			(5)
 #define SUNXI_UPDATA_NEXT_ACTION_SPRITE_TEST    (6)
 
+#define SUNXI_DEBUG_MODE_FLAG           (0x59)
+#define SUNXI_EFEX_CMD_FLAG             (0x5A)
+#define SUNXI_BOOT_RESIGNATURE_FLAG     (0x5B)
+#define SUNXI_BOOT_RECOVERY_FLAG        (0x5C)
+#define SUNXI_SYS_RECOVERY_FLAG         (0x5D)
+#define SUNXI_USB_RECOVERY_FLAG         (0x5E)
+#define SUNXI_FASTBOOT_FLAG             (0x5F)
+
 #define SUNXI_VBUS_UNKNOWN                      (0)
 #define SUNXI_VBUS_EXIST                        (1)
 #define SUNXI_VBUS_NOT_EXIST                    (2)
+
+#ifdef	CONFIG_MMC_BOOT_START
+
+#define BOOT0_SDMMC_START_ADDR                  (0)
+#define BOOT0_SDMMC_BACKUP_START_ADDR           (240)
+
+#define BOOT0_EMMC3_START_ADDR                  (368)
+#define BOOT0_EMMC3_BACKUP_START_ADDR           (496)
+
+
+#define UBOOT_START_SECTOR_IN_SDMMC             (736)
+#define UBOOT_BACKUP_START_SECTOR_IN_SDMMC      (736)
+
+
+#else
 
 #define BOOT0_SDMMC_START_ADDR                  (16)
 #define BOOT0_SDMMC_BACKUP_START_ADDR           (256)
@@ -71,11 +94,15 @@
 
 #define UBOOT_START_SECTOR_IN_SDMMC             (32800)
 #define UBOOT_BACKUP_START_SECTOR_IN_SDMMC      (24576)
-
+#endif
 
 #define SUNXI_NORMAL_MODE                            0
 #define SUNXI_SECURE_MODE_WITH_SECUREOS              1
 #define SUNXI_SECURE_MODE_NO_SECUREOS                2
+
+#define SUNXI_RUN_CRASHDUMP_RESET_FLAG                (0x5AA55AA5)
+#define SUNXI_RUN_CRASHDUMP_RESET_READY               (0x5AA55AA6)
+#define SUNXI_RUN_CRASHDUMP_REFRESH_READY             (0x5AA55AA7)
 
 typedef enum _SUNXI_BOOT_FILE_MODE
 {
@@ -89,9 +116,10 @@ typedef enum _SUNXI_BOOT_FILE_MODE
 
 
 #define   BOOT_FROM_SD0     0
-#define   BOOT_FROM_SD2     2
 #define   BOOT_FROM_NFC     1
-#define   BOOT_FROM_SPI     3
+#define   BOOT_FROM_SD2     2
+#define   BOOT_FROM_SPI_NOR  3
+#define   BOOT_FROM_SPI_NAND 4
 
 //#define	TOC_MAIN_INFO_STATUS_ENCRYP_NOT_USED	0x00
 //#define	TOC_MAIN_INFO_STATUS_ENCRYP_SSK			0x01

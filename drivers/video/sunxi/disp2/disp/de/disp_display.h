@@ -100,6 +100,9 @@ s32 bsp_disp_tv_resume(void);
 
 int bsp_disp_get_fb_info(unsigned int disp, struct disp_layer_info *info);
 int bsp_disp_get_display_size(u32 disp, unsigned int *width, unsigned int *height);
+s32 bsp_disp_lcd_dsi_clk_enable(u32 disp, u32 en);
+s32 bsp_disp_lcd_dsi_dcs_wr(u32 disp, u8 command, u8 *para, u32 para_num);
+s32 bsp_disp_lcd_dsi_gen_wr(u32 disp, u8 command, u8 *para, u32 para_num);
 
 #ifdef CONFIG_DEVFREQ_DRAM_FREQ_IN_VSYNC
 /* dramfreq interface */

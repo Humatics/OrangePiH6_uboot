@@ -30,8 +30,16 @@ void set_pll_cpux_axi(void)
 	writel((0<<24) | (3<<8) | (2<<0), CCMU_CPUX_AXI_CFG_REG);
 	__usdelay(1);
 
-	/* set default val: clk is 1440M  ,PLL_OUTPUT= 24M*(N+1)/(M+1)/(P+1) */
-	writel(((1<<25) | (59<<8)), CCMU_PLL_CPUX_CTRL_REG);
+	/* set default val: clk is 1008M  ,PLL_OUTPUT= 24M*(N+1)/(M+1)/(P+1) */
+	/* disable pll*/
+	reg_val = readl(CCMU_PLL_CPUX_CTRL_REG);
+	reg_val &= ~(1 << 31);
+	writel(reg_val, CCMU_PLL_CPUX_CTRL_REG);
+
+	reg_val = readl(CCMU_PLL_CPUX_CTRL_REG);
+	reg_val &= ~((0x3 << 16) | (0xff << 8) | (0x3 << 0));
+	reg_val |= (41 << 8);
+	writel(reg_val, CCMU_PLL_CPUX_CTRL_REG);
 
 	/* lock enable */
 	reg_val = readl(CCMU_PLL_CPUX_CTRL_REG);
@@ -53,12 +61,22 @@ void set_pll_cpux_axi(void)
 	reg_val &= ~(1<<29);
 	writel(reg_val, CCMU_PLL_CPUX_CTRL_REG);
 
-	//set and change cpu clk src to PLL_CPUX,  PLL_CPUX:AXI0 = 408M:136M
+	/*set and change cpu clk src to PLL_CPUX,  PLL_CPUX:AXI0 = 1008M:366M*/
 	reg_val = readl(CCMU_CPUX_AXI_CFG_REG);
-	reg_val &=  ~(0x03 << 24);
-	reg_val |=  (0x03 << 24);
+	reg_val &= ~(0x03 << 24);
 	writel(reg_val, CCMU_CPUX_AXI_CFG_REG);
+
+	reg_val = readl(CCMU_CPUX_AXI_CFG_REG);
+	reg_val &= ~(0x03 << 0);
+	reg_val |= (0x02 << 0);
+	writel(reg_val, CCMU_CPUX_AXI_CFG_REG);
+
+	reg_val = readl(CCMU_CPUX_AXI_CFG_REG);
+	reg_val |= (0x03 << 24);
+	writel(reg_val, CCMU_CPUX_AXI_CFG_REG);
+
 	__usdelay(1);
+
 }
 
 

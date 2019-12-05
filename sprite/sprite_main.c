@@ -212,7 +212,7 @@ int sunxi_card_sprite_main(int workmode, char *name)
 	sunxi_download_info  dl_map;			//dlinfo
 	int    sprite_next_work;
 	int nodeoffset;
-	int mbr_num = SUNXI_MBR_COPY_NUM;
+	//int mbr_num = SUNXI_MBR_COPY_NUM;
 
 	tick_printf("sunxi sprite begin\n");
 	//获取当前是量产介质是nand或者卡
@@ -261,6 +261,9 @@ int sunxi_card_sprite_main(int workmode, char *name)
 #ifdef CONFIG_BACKUP_PARTITION
 	work_addr = set_part_back_work((sunxi_mbr_t *)img_mbr, 0, 0);
 #endif
+
+#ifndef DISABLE_SUNXI_MBR
+	int mbr_num = SUNXI_MBR_COPY_NUM;
 	if (production_media == STORAGE_NOR)
 	{
 		mbr_num = 1;
@@ -271,6 +274,7 @@ int sunxi_card_sprite_main(int workmode, char *name)
 
 		return -1;
 	}
+#endif
 	sprite_cartoon_upgrade(10);
 	tick_printf("begin to download part\n");
 	//开始烧写分区

@@ -10,7 +10,6 @@
 *.axf
 *.map
 *.bin
-*.lds
 *.o
 *.depend
 *.cur
@@ -20,6 +19,4 @@ include/generated/generic-asm-offsets.h
 # Generated files
 #
 
-!fes_init/main/fes_init.lds
-!boot0/main/boot0.lds
-!sbrom/main/sboot.lds
+

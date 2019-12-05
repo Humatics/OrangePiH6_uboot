@@ -67,6 +67,20 @@ typedef enum
 extern int sunxi_disp_get_source_ops(struct sunxi_disp_source_ops *src_ops);
 int lcd_init(void);
 
+#if defined(CONFIG_ARCH_SUN50IW3P1)
+extern __lcd_panel_t ls029b3sx02_panel;
+extern __lcd_panel_t vr_ls055t1sx01_panel;
+extern __lcd_panel_t lq101r1sx03_panel;
+extern __lcd_panel_t he0801a068_panel;
+extern __lcd_panel_t sl008pn21d_panel;
+#else
+#if defined(CONFIG_ARCH_SUN8IW12P1)
+extern __lcd_panel_t ili9341_panel;
+extern __lcd_panel_t fd055hd003s_panel;
+extern __lcd_panel_t default_panel;
+extern __lcd_panel_t lh219wq1_panel;
+extern __lcd_panel_t h245qbn02_panel;
+#else
 extern __lcd_panel_t default_eink;
 extern __lcd_panel_t default_panel;
 extern __lcd_panel_t lt070me05000_panel;
@@ -76,5 +90,10 @@ extern __lcd_panel_t dx0960be40a1_panel;
 extern __lcd_panel_t tft720x1280_panel;
 extern __lcd_panel_t S6D7AA0X01_panel;
 extern __lcd_panel_t gg1p4062utsw_panel;
+extern __lcd_panel_t vr_sharp_panel;
+extern __lcd_panel_t he0801a068_panel;
+#endif /*endif CONFIG_ARCH_SUN8IW12P1 */
+#endif /*endif CONFIG_ARCH_SUN50IW3P1 */
+
 
 #endif

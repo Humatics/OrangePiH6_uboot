@@ -547,6 +547,13 @@ static void drv_global_value_init(void)
 #if defined(__LINUX_PLAT__)
 static int hdmi_tx_init(struct platform_device *pdev)
 #else
+s32 hdmi_deinit(void)
+{
+	int ret = 0;
+	ret = hdmi_disable_core();
+	return ret;
+}
+
 s32 hdmi_init(void)
 #endif
 

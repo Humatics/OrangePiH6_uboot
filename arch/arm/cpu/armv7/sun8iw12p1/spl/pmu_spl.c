@@ -41,6 +41,10 @@
 
 #define PMU_IC_TYPY_REG (0x3)
 
+#define VDD_SYS_VOL	(920)
+#define VOL_ON			(1)
+
+
 typedef struct _axp_contrl_info
 {
 	char name[8];
@@ -69,11 +73,20 @@ s32 pmu_bus_init(void);
 
 #ifdef CONFIG_SUNXI_AXP809
 axp_contrl_info axp_ctrl_tbl[] = { \
-/*   name        min,     max,    reg,    mask,  step0,   split1_val,  step1,   ctrl_reg,           ctrl_bit */
+/*   name     min,  max,   reg,   mask,  step0,
+split1_val,  step1,   ctrl_reg,     ctrl_bit */
 
-	{"dcdc2",   500,  1300, 0x21,  0x7f,   10,  1200,       20,   BOOT_POWER809_OUTPUT_CTL1, 1},
-	{"dcdc5",   800,  1840, 0x24,  0x7f,   10,  1120,       20,   BOOT_POWER809_OUTPUT_CTL1, 4},
+	{"dcdc2",   600,  1540, 0x22,  0x7f,   20,
+	0,   0,   BOOT_POWER809_OUTPUT_CTL1, 2},
 
+	{"dcdc3",   600,  1860, 0x23,  0x7f,   20,
+	0,   0,   BOOT_POWER809_OUTPUT_CTL1, 3},
+
+	{"dcdc5",   1000,  2550, 0x25,  0x7f,   50,
+	0,   0,   BOOT_POWER809_OUTPUT_CTL1, 5},
+
+	{"aldo3",   700,  3300, 0x2a,  0x7f,   100,
+	0,   0,   BOOT_POWER809_OUTPUT_CTL2, 5},
 };
 #define PMU_POWER_KEY_STATUS BOOT_POWER809_INTSTS5
 #define PMU_POWER_KEY_OFFSET 0x3
@@ -100,7 +113,13 @@ int pmu_init(u8 power_mode)
 	if(pmu_type == 0x42)
 	{
 		/* pmu type AXP809 */
+#ifdef CONFIG_ARCH_SUN8IW12P1
+		printf("PMU: AXP233\n");
+#else
 		printf("PMU: AXP809\n");
+#endif
+
+		set_sys_voltage(VDD_SYS_VOL, VOL_ON);
 		return AXP809_CHIP_ID;
 	}
 
@@ -153,6 +172,16 @@ int set_ddr_voltage(int set_vol)
 int set_pll_voltage(int set_vol)
 {
 	return pmu_set_vol("dcdc2", set_vol, 1);
+}
+
+int set_efuse_voltage(int set_vol)
+{
+	return pmu_set_vol("aldo3", set_vol, 1);
+}
+
+int set_sys_voltage(int set_vol, int onoff)
+{
+	return pmu_set_vol("dcdc3", set_vol, onoff);
 }
 
 static axp_contrl_info* get_ctrl_info_from_tbl(char* name)

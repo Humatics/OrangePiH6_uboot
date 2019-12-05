@@ -37,6 +37,7 @@ COBJS-$(CONFIG_SUNXI_CHIPID)+= $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/$(SOC)/spl/efus
 COBJS-y += $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/$(SOC)/spl/fip_common.o
 COBJS-y += $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/$(SOC)/spl/jmp.o
 
+
 ifndef CONFIG_GPADC_KEY
 COBJS-y += $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/sunxi_spl_common/key.o
 else

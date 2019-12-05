@@ -47,7 +47,7 @@ int board_init(void)
 	//asm volatile("b .");
     u32 reg_val;
     int cpu_status = 0;
-    cpu_status = readl(SUNXI_CPUXCFG_BASE+0x80);
+    cpu_status = readl(SUNXI_CPUX_CFG_BASE+0x80);
     cpu_status &= (0xf<<24);
 
     //note:
@@ -167,13 +167,13 @@ int platform_axp_probe(sunxi_axp_dev_t  *sunxi_axp_dev_pt[], int max_dev)
 #ifdef CONFIG_SUNXI_MODULE_AXP
     if(axp809_probe())
     {
-        printf("probe axp809 failed\n");
+        printf("probe axp233 failed\n");
         sunxi_axp_dev_pt[0] = &sunxi_axp_null;
         return 0;
     }
 
     /* pmu type AXP80X */
-    tick_printf("PMU: AXP809 found\n");
+    tick_printf("PMU: AXP233 found\n");
     sunxi_axp_dev_pt[0] = &sunxi_axp_809;
 #else
     sunxi_axp_dev_pt[0] = &sunxi_axp_null;

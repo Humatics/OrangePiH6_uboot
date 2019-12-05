@@ -187,7 +187,8 @@ void fc_avi_config(hdmi_tx_dev_t *dev, videoParams_t *videoParams)
 
 	fc_ScanInfo(dev, videoParams->mScanInfo);
 
-	if (dtd->mHImageSize != 0 || dtd->mVImageSize != 0) {
+	if ((dtd->mHImageSize != 0 || dtd->mVImageSize != 0)
+		&& (dtd->mHImageSize > dtd->mVImageSize)) {
 		u8 pic = (dtd->mHImageSize * 10) % dtd->mVImageSize;
 		/* 16:9 or 4:3 */
 		fc_PicAspectRatio(dev, (pic > 5) ? 2 : 1);

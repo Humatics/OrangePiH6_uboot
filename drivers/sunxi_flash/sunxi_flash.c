@@ -107,6 +107,23 @@ sunxi_null_secstorage_write(int item, unsigned char *buf, unsigned int len)
 	return 0;
 }
 
+static int
+sunxi_null_wp_grp_size(unsigned int *wp_grp_size)
+{
+	return 0;
+}
+
+static int
+sunxi_null_write_protect(unsigned wp_type, unsigned start, unsigned blkcnt)
+{
+	return 0;
+}
+
+static int
+sunxi_null_phyclr_tem_wp(unsigned start, unsigned blkcnt)
+{
+	return 0;
+}
 
 
 #ifdef CONFIG_SUNXI_SPINOR
@@ -217,9 +234,14 @@ int (* sunxi_flash_flush_pt) (void) = sunxi_null_flush;
 int (* sunxi_flash_phyread_pt) (unsigned int start_block, unsigned int nblock, void *buffer) = sunxi_null_op;
 int (* sunxi_flash_phywrite_pt)(unsigned int start_block, unsigned int nblock, void *buffer) = sunxi_null_op;
 
+int (* sunxi_flash_user_phyget_wp_grp_size_pt)(unsigned int *wp_grp_size)= sunxi_null_wp_grp_size;
+int (* sunxi_flash_user_phywrite_protect_pt)(unsigned wp_type, unsigned start, unsigned blkcnt) = sunxi_null_write_protect;
+int (* sunxi_flash_phyclr_tem_wp_pt)(unsigned start, unsigned blkcnt) = sunxi_null_phyclr_tem_wp;
+
 int (* sunxi_sprite_init_pt)(int stage) = sunxi_null_init;
 int (* sunxi_sprite_read_pt) (uint start_block, uint nblock, void *buffer) = sunxi_null_op;
 int (* sunxi_sprite_write_pt)(uint start_block, uint nblock, void *buffer) = sunxi_null_op;
+
 int (* sunxi_sprite_erase_pt)(int erase, void *mbr_buffer) = sunxi_null_erase;
 uint (* sunxi_sprite_size_pt)(void) = sunxi_null_size;
 int (* sunxi_sprite_exit_pt) (int force) = sunxi_null_exit;
@@ -227,6 +249,11 @@ int (* sunxi_sprite_flush_pt)(void) = sunxi_null_flush;
 int (* sunxi_sprite_force_erase_pt)(void)  = sunxi_null_force_erase;
 int (* sunxi_sprite_phyread_pt) (unsigned int start_block, unsigned int nblock, void *buffer) = sunxi_null_op;
 int (* sunxi_sprite_phywrite_pt)(unsigned int start_block, unsigned int nblock, void *buffer) = sunxi_null_op;
+
+int (* sunxi_sprite_user_phyget_wp_grp_size_pt)(unsigned int *wp_grp_size)= sunxi_null_wp_grp_size;
+int (* sunxi_sprite_user_phywrite_protect_pt)(unsigned wp_type, unsigned start, unsigned blkcnt) = sunxi_null_write_protect;
+int (* sunxi_sprite_phyclr_tem_wp_pt)(unsigned start, unsigned blkcnt) = sunxi_null_phyclr_tem_wp;
+
 #ifdef CONFIG_SUNXI_SPINOR
 int (* sunxi_sprite_datafinish_pt) (void) = sunxi_null_datafinish;
 #endif
@@ -245,8 +272,19 @@ int sunxi_flash_read (uint start_block, uint nblock, void *buffer)
 
 int sunxi_flash_write(uint start_block, uint nblock, void *buffer)
 {
+    int ret;
 	debug("sunxi flash write : start %d, sector %d\n", start_block, nblock);
-	return sunxi_flash_write_pt(start_block, nblock, buffer);
+	ret = sunxi_flash_write_pt(start_block, nblock, buffer);
+
+#ifdef CONFIG_SUNXI_SPINOR
+    sunxi_flash_flush();
+#endif
+    return ret;
+}
+
+int sunxi_mmc_enable_bootop(int part_nu, int enable)
+{
+	return sunxi_sprite_mmc_bootop_enable(part_nu, enable);
 }
 
 uint sunxi_flash_size(void)
@@ -273,6 +311,22 @@ int sunxi_flash_phywrite(uint start_block, uint nblock, void *buffer)
 {
 	return sunxi_flash_phywrite_pt(start_block, nblock, buffer);
 }
+
+int sunxi_flash_user_phyget_wp_grp_size(unsigned int *wp_grp_size)
+{
+		return sunxi_flash_user_phyget_wp_grp_size_pt(wp_grp_size);
+}
+
+int sunxi_flash_user_phywrite_protect(unsigned wp_type, unsigned start, unsigned blkcnt)
+{
+		return sunxi_flash_user_phywrite_protect_pt(wp_type, start, blkcnt);
+}
+
+int sunxi_flash_phyclr_tem_wp(unsigned start, unsigned blkcnt)
+{
+		return sunxi_flash_phyclr_tem_wp_pt(start, blkcnt);
+}
+
 //-----------------------------------noraml interface end---------------------------------------------------
 
 
@@ -326,6 +380,20 @@ int sunxi_sprite_force_erase(void)
 {
     return sunxi_sprite_force_erase_pt();
 }
+
+int sunxi_sprite_user_phyget_wp_grp_size(unsigned int *wp_grp_size)
+{
+		return sunxi_sprite_user_phyget_wp_grp_size_pt(wp_grp_size);
+}
+int sunxi_sprite_user_phywrite_protect(unsigned wp_type, unsigned start, unsigned blkcnt)
+{
+		return sunxi_sprite_user_phywrite_protect_pt(wp_type, start, blkcnt);
+}
+int sunxi_sprite_phyclr_tem_wp(unsigned start, unsigned blkcnt)
+{
+		return sunxi_sprite_phyclr_tem_wp_pt(start, blkcnt);
+}
+
 //-------------------------------------sprite interface end-----------------------------------------------
 
 //sunxi flash boot interface init
@@ -433,8 +501,8 @@ int sunxi_flash_handle_init(void)
 	int storage_type = 0;
 	int state = 0;
 
-	workmode     = uboot_spare_head.boot_data.work_mode;
-	storage_type = uboot_spare_head.boot_data.storage_type;
+	workmode     = get_boot_work_mode();
+	storage_type = get_boot_storage_type();
 
 	printf("workmode = %d,storage type = %d\n", workmode,storage_type);
 
@@ -564,7 +632,11 @@ int read_boot_package(int storage_type, void *package_buf)
 	    case STORAGE_EMMC:
 	    case STORAGE_SD:
 	    case STORAGE_EMMC3:
+#ifdef CONFIG_MMC_BOOT_START
+			ret = sunxi_sprite_mmc_bootp_phyread(UBOOT_START_SECTOR_IN_SDMMC, read_len/512, package_buf);
+#else
 	        ret = sunxi_sprite_phyread(UBOOT_START_SECTOR_IN_SDMMC, read_len/512, package_buf);
+#endif
 	        break;
 #endif
 #ifdef CONFIG_SUNXI_SPINOR

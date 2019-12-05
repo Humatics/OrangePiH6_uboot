@@ -16,7 +16,7 @@
 #define MMC_MSG_EN	(1U)
 #define MMCMSG(d, fmt, args...) do {if ((d)->msglevel & MMC_MSG_EN)  printf("[mmc]: "fmt,##args); } while(0)
 
-#define DRIVER_VER  "2017-09-4 10:12:00"
+#define DRIVER_VER  "2017-11-30 10:34:00"
 
 
 //secure storage relate

@@ -26,6 +26,7 @@
 #include <fdt_support.h>
 #include <sys_config_old.h>
 #include <cputask.h>
+#include <asm/arch-sun50iw6p1/sid.h>
 
 /* The sunxi internal brom will try to loader external bootloader
  * from mmc0, nannd flash, mmc2.
@@ -36,37 +37,44 @@ DECLARE_GLOBAL_DATA_PTR;
 
 extern void power_limit_init(void);
 extern int sunxi_arisc_probe(void);
-extern int set_sunxi_gpio_power_bias(void);
 
 int power_source_init(void)
 {
 	int pll_cpux;
 	int axp_exist = 0;
+	int pmu_type = 0;
 
 	printf("u0:%x\n", readl(0x44000));
 #ifdef CONFIG_SUNXI_ARISC_EXIST
 	sunxi_arisc_probe();
 #endif
 
-	axp_exist =  axp_probe();
-	if(axp_exist)
-	{
-		axp_probe_factory_mode();
-		if(axp_probe_power_supply_condition())
+	pmu_type = uboot_spare_head.boot_ext[0].data[0];
+	if (pmu_type) {
+		axp_exist =  axp_probe();
+		if(axp_exist)
 		{
-			printf("axp_probe_power_supply_condition error\n");
+			axp_probe_factory_mode();
+			if (axp_probe_power_supply_condition()) {
+				printf("axp_probe_power_supply_condition error\n");
+			}
+			gd->vbus_status = axp_probe_vbus_type();
+			set_sunxi_gpio_power_bias();
+			axp_set_charge_vol_limit();
+			axp_set_all_limit();
+			axp_set_hardware_poweron_vol();
+			if (axp_set_power_supply_output() < 0) {
+				printf("axp_set_power_supply_output error\n");
+				while (1) {
+					;
+				}
+			}
+		} else {
+			printf("axp_probe error\n");
 		}
-		gd->vbus_status = axp_probe_vbus_type();
+	} else {
 		set_sunxi_gpio_power_bias();
-		axp_set_charge_vol_limit();
-		axp_set_all_limit();
-		axp_set_hardware_poweron_vol();
-		axp_set_power_supply_output();
-                power_limit_init();
-	}
-	else
-	{
-		printf("axp_probe error\n");
+		sunxi_axp_dummy_init();
 	}
 
 	sunxi_clock_set_corepll(uboot_spare_head.boot_data.run_clock);
@@ -204,4 +212,133 @@ int sunxi_get_securemode(void)
 int sunxi_probe_secure_monitor(void)
 {
 	return uboot_spare_head.boot_data.monitor_exist == SUNXI_SECURE_MODE_USE_SEC_MONITOR?1:0;
+}
+
+static int fdt_set_gpu_dvfstable(int limit_max_freq)
+{
+	u32 operating_points[50] = {0};
+	int len, ret, i;
+	int  nodeoffset;	/* node offset from libfdt */
+	char path_tmp[128] = {0};
+	char node_name[32] = {0};
+	int pmu_type = 0, vol = 0;
+
+	pmu_type = uboot_spare_head.boot_ext[0].data[0];
+
+	sprintf(path_tmp, "/gpu/");
+	nodeoffset = fdt_path_offset (working_fdt, path_tmp);
+	if (nodeoffset < 0) {
+			/*
+			* Not found or something else bad happened.
+			*/
+
+			printf ("can't find node \"%s\"!!!!\n",path_tmp);
+			return 0;
+	}
+	sprintf(node_name, "operating-points");
+	len = fdt_getprop_u32(working_fdt, nodeoffset,
+				node_name, operating_points);
+	if (len < 0) {
+		printf("Get %s%s failed\n", path_tmp, node_name);
+		return 0;
+	}
+
+	for (i = 0; i < len; i++) {
+		if (operating_points[i] == limit_max_freq) {
+			vol = operating_points[i+1];
+			break;
+		}
+	}
+	for (i = 0; i < len; i++) {
+		if (pmu_type) {
+			if (i % 2 == 0) {
+				if (operating_points[i] > limit_max_freq) {
+					operating_points[i] = limit_max_freq;
+					operating_points[i+1] = ((vol > 0) ?
+							vol : 95000);
+				}
+			}
+		} else {
+			if (i % 2 == 0) {
+				if (operating_points[i] > limit_max_freq) {
+					operating_points[i] = limit_max_freq;
+				}
+			} else {
+				operating_points[i] = 980000;
+			}
+		}
+	}
+
+	for (i = 0; i < len; i++) {
+		operating_points[i] = cpu_to_fdt32(operating_points[i]);
+	}
+
+	ret = fdt_setprop(working_fdt, nodeoffset, node_name,
+			operating_points, sizeof(u32) * len);
+	if (ret < 0) {
+		printf("Set %s%s failed\n", path_tmp, node_name);
+		return -1;;
+	}
+
+	return 0;
+}
+static int fdt_set_cpu_dvfstable(int limit_max_freq)
+{
+	int ret = 0, table_num = 0;
+	uint32_t max_freq = 0;
+	int  nodeoffset;	/* node offset from libfdt */
+	char path_tmp[128] = {0};
+	char node_name[32] = {0};
+	u32  data_arr[1];
+
+	for (;; ++table_num) {
+		sprintf(path_tmp, "/dvfs_table/dvfs_table_%d/", table_num);
+
+		nodeoffset = fdt_path_offset (working_fdt, path_tmp);
+		if (nodeoffset < 0) {
+			/*
+			* Not found or something else bad happened.
+			*/
+
+			printf ("can't find node \"%s\"!!!!\n",path_tmp);
+			break;
+		}
+
+		sprintf(node_name, "max_freq");
+		ret = fdt_getprop_u32(working_fdt,nodeoffset,
+					node_name,&max_freq);
+		if (ret < 0) {
+			printf("Get %s%s failed\n", path_tmp, node_name);
+			return 0;
+		}
+		if (max_freq > limit_max_freq)
+			max_freq = limit_max_freq;
+		else
+			continue;
+
+		data_arr[0] = cpu_to_fdt32(max_freq);
+		ret = fdt_setprop(working_fdt, nodeoffset, node_name,
+					data_arr, sizeof(data_arr));
+		if (ret < 0) {
+			printf("Set %s%s failed\n", path_tmp, node_name);
+			return -1;;
+		}
+	}
+	return 0;
+}
+int verify_init(void)
+{
+	int chipid = 0, ret = 0;
+
+	chipid = sid_read_key(0x0) & 0xff;
+
+	if (chipid == 0x03 || chipid == 0x08 || chipid == 0x04) {
+		ret = fdt_set_cpu_dvfstable(1488000000);
+		if (ret == 0)
+			printf("sussessfully[c%d%d]\n", chipid, 1488);
+		fdt_set_gpu_dvfstable(624000);
+		if (ret == 0)
+			printf("sussessfully[g%d%d]\n", chipid, 624);
+	}
+	return ret;
 }

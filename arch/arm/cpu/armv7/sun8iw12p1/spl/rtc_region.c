@@ -56,7 +56,8 @@ uint rtc_region_probe_fel_flag(void)
 	for(i=0;i<=5;i++)
 	{
 		reg_value = readl(RTC_DATA_HOLD_REG_BASE + i*4);
-		printf("rtc[%d] value = 0x%x\n", i, reg_value);
+		if (reg_value)
+			printf("rtc[%d] value = 0x%x\n", i, reg_value);
 	}
 
 	return fel_flag;
@@ -83,13 +84,25 @@ void rtc_region_clear_fel_flag(void)
 	do
 	{
 		writel(0, RTC_DATA_HOLD_REG_FEL);
-		asm volatile("DSB");
-		asm volatile("ISB");
+		__usdelay(10);
+		asm volatile("ISB SY");
+		asm volatile("DMB SY");
 		flag  = readl(RTC_DATA_HOLD_REG_FEL);
 	}
 	while(flag != 0);
 }
 
+void rtc_region_set_fel_flag(int flag)
+{
+	volatile int val;
+	do {
+		writel(flag, RTC_DATA_HOLD_REG_FEL);
+		__usdelay(10);
+		asm volatile("ISB SY");
+		asm volatile("DMB SY");
+		val  = readl(RTC_DATA_HOLD_REG_FEL);
+	} while (val != flag);
+}
 
 
 

@@ -2,11 +2,11 @@
 #define __DEV_DISP_H__
 
 #include "de/bsp_display.h"
-#if defined(SUPPORT_HDMI)
+#if defined(SUPPORT_HDMI) && defined(CONFIG_SUNXI_MODULE_HDMI)
 #include "../hdmi/drv_hdmi_i.h"
 #endif
 
-#if defined(SUPPORT_TV)
+#if defined(SUPPORT_TV) && defined(CONFIG_SUNXI_MODULE_HDMI)
 #include "../tv/drv_tv.h"
 #endif
 

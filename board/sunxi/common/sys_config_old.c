@@ -1227,7 +1227,7 @@ ulong gpio_request_ex(char *main_name, const char *sub_name)
 
 int gpio_request_simple(char *main_name, const char *sub_name)
 {
-	user_gpio_set_t     gpio_list[16];
+	user_gpio_set_t     gpio_list[32];
 	__s32               gpio_count;
 	int ret = -1;
 
@@ -1241,7 +1241,7 @@ int gpio_request_simple(char *main_name, const char *sub_name)
 			return -1;
 		}
 
-		memset(gpio_list, 0, 16 * sizeof(user_gpio_set_t));
+		memset(gpio_list, 0, 32 * sizeof(user_gpio_set_t));
 
 		if (!script_parser_mainkey_get_gpio_cfg(main_name, gpio_list, gpio_count))
 		{

@@ -101,7 +101,11 @@ int load_toc1_from_sdmmc(char *buf)
 	int ret =0;
 	int start_sector,i;
 	int error_num = E_SDMMC_OK;
+#ifdef CONFIG_MMC_BOOT_START
+	int start_sectors[4] = {UBOOT_START_SECTOR_IN_SDMMC,0,0,0};
+#else
 	int start_sectors[4] = {UBOOT_START_SECTOR_IN_SDMMC,UBOOT_BACKUP_START_SECTOR_IN_SDMMC,0,0};
+#endif
 	boot_sdcard_info_t  *sdcard_info = (boot_sdcard_info_t *)buf;
 
 	card_no = get_card_num();
@@ -134,7 +138,11 @@ int load_toc1_from_sdmmc(char *buf)
 			error_num = E_SDMMC_FIND_BOOT1_ERR;
 			goto __ERROR_EXIT;
 		}
+#ifdef CONFIG_MMC_BOOT_START
+		ret = mmc_bread_bootp(card_no, start_sector, 64, 1, tmp_buff);
+#else
 		ret = mmc_bread(card_no, start_sector, 64, tmp_buff);
+#endif
 		if(!ret)
 		{
 			error_num = E_SDMMC_READ_ERR;
@@ -150,7 +158,12 @@ int load_toc1_from_sdmmc(char *buf)
 		if(total_size > 64 * 512)
 		{
 			tmp_buff += 64*512;
+
+#ifdef CONFIG_MMC_BOOT_START
+			ret = mmc_bread_bootp(card_no, start_sector + 64, (total_size - 64*512 + 511)/512, 1, tmp_buff);
+#else
 			ret = mmc_bread(card_no, start_sector + 64, (total_size - 64*512 + 511)/512, tmp_buff);
+#endif
 			if(!ret)
 			{
 				error_num = E_SDMMC_READ_ERR;
@@ -176,7 +189,6 @@ __ERROR_EXIT:
 	return -1;
 
 }
-
 
 int load_boot1(void)
 {

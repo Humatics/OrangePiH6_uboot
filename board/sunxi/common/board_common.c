@@ -51,6 +51,7 @@ void  __attribute__((weak)) mmc_update_config_for_dragonboard(int card_no)
 {
 	return;
 }
+
 struct mmc *  __attribute__((weak)) find_mmc_device(int dev_num)
 {
 	return NULL;
@@ -58,7 +59,19 @@ struct mmc *  __attribute__((weak)) find_mmc_device(int dev_num)
 
 void sunxi_update_subsequent_processing(int next_work)
 {
+	int mode = 0;
+
 	printf("next work %d\n", next_work);
+
+	mode = uboot_spare_head.boot_data.work_mode;
+
+	if ((mode & WORK_MODE_PRODUCT) || (mode & WORK_MODE_UPDATE))
+	{
+#ifdef CONFIG_MMC_BOOT_START
+		sunxi_mmc_enable_bootop(1, 1);
+#endif
+	}
+
 	switch(next_work)
 	{
 		case SUNXI_UPDATE_NEXT_ACTION_REBOOT:
@@ -87,7 +100,7 @@ void sunxi_update_subsequent_processing(int next_work)
 	return ;
 }
 
-static void  __set_part_name_for_nand(int index, char* part_name,int part_type)
+__maybe_unused static void  __set_part_name_for_nand(int index, char* part_name,int part_type)
 {
 	if(PART_TYPE_GPT == part_type)
 	{
@@ -98,7 +111,7 @@ static void  __set_part_name_for_nand(int index, char* part_name,int part_type)
 		sprintf(part_name, "nand%c", 'a' + index);
 	}
 }
-static void __set_part_name_for_sdmmc(int index, char* part_name,int part_type, int part_total)
+__maybe_unused static void __set_part_name_for_sdmmc(int index, char* part_name,int part_type, int part_total)
 {
 	if(PART_TYPE_GPT == part_type)
 	{
@@ -131,8 +144,8 @@ void sunxi_fastboot_init(void)
 	char *partition_index = partition_sets;
 	int offset = 0;
 	int temp_offset = 0;
-	int storage_type = uboot_spare_head.boot_data.storage_type;
-	int part_type = 0;
+	int storage_type = get_boot_storage_type();
+	__maybe_unused int part_type = 0;
 
 	printf("--------fastboot partitions--------\n");
 	part_total = sunxi_partition_get_total_num();
@@ -366,6 +379,7 @@ int update_bootcmd(void)
 	char  misc_fill[2048];
 	char  boot_commond[256];
 	static struct bootloader_message *misc_message;
+	int   storage_type = get_boot_storage_type();
 
 	if(gd->force_shell)
 	{
@@ -376,22 +390,17 @@ int update_bootcmd(void)
 
 	memset(boot_commond, 0x0, 128);
 	strcpy(boot_commond, getenv("bootcmd"));
-	printf("base bootcmd=%s\n", boot_commond);
+	pr_msg("base bootcmd=%s\n", boot_commond);
 
-	if((uboot_spare_head.boot_data.storage_type == STORAGE_SD) ||
-		(uboot_spare_head.boot_data.storage_type == STORAGE_EMMC)||
-		uboot_spare_head.boot_data.storage_type == STORAGE_EMMC3)
-	{
+	if ((storage_type == STORAGE_SD) ||
+		(storage_type == STORAGE_EMMC)||
+		storage_type == STORAGE_EMMC3) {
 		sunxi_str_replace(boot_commond, "setargs_nand", "setargs_mmc");
-		printf("bootcmd set setargs_mmc\n");
-	}
-	else if(uboot_spare_head.boot_data.storage_type == STORAGE_NOR)
-	{
+		pr_msg("bootcmd set setargs_mmc\n");
+	} else if (storage_type == STORAGE_NOR) {
 		sunxi_str_replace(boot_commond, "setargs_nand", "setargs_nor");
-	}
-	else if(uboot_spare_head.boot_data.storage_type == STORAGE_NAND)
-	{
-		printf("bootcmd set setargs_nand\n");
+	} else if (storage_type == STORAGE_NAND) {
+		pr_msg("bootcmd set setargs_nand\n");
 	}
 
 	//user enter debug mode by plug usb up to 3 times
@@ -780,6 +789,12 @@ int get_boot_storage_type(void)
 	return uboot_spare_head.boot_data.storage_type;
 }
 
+void set_boot_storage_type(int storage_type)
+{
+	uboot_spare_head.boot_data.storage_type = storage_type;
+}
+
+
 u32 get_boot_dram_para_addr(void)
 {
 	return (u32)uboot_spare_head.boot_data.dram_para;
@@ -1004,7 +1019,7 @@ int update_dram_para_for_ota(void)
 	int ret = 0;
 	int card_num = 2;
 
-	if (uboot_spare_head.boot_data.storage_type == STORAGE_EMMC3)
+	if (get_boot_storage_type() == STORAGE_EMMC3)
 	{
 		card_num = 3;
 	}
@@ -1170,6 +1185,49 @@ int detect_part_back_work(void)
 }
 #endif
 
+uint sunxi_generate_checksum(void *buffer, uint length, uint src_sum)
+{
+#ifndef CONFIG_USE_NEON_SIMD
+	uint *buf;
+	uint count;
+	uint sum;
+
+	count = length >> 2;
+	sum = 0;
+	buf = (__u32 *)buffer;
+	do
+	{
+		sum += *buf++;
+		sum += *buf++;
+		sum += *buf++;
+		sum += *buf++;
+	}while( ( count -= 4 ) > (4-1) );
+
+	while( count-- > 0 )
+		sum += *buf++;
+#else
+	uint sum;
+
+	sum = add_sum_neon(buffer, length);
+#endif
+	sum = sum - src_sum + STAMP_VALUE;
+
+    return sum;
+}
+
+int sunxi_verify_checksum(void *buffer, uint length, uint src_sum)
+{
+	uint sum;
+	sum = sunxi_generate_checksum(buffer, length, src_sum);
+
+	debug("src sum=%x, check sum=%x\n", src_sum, sum);
+	if( sum == src_sum )
+		return 0;
+	else
+		return -1;
+}
+
+
 static int gpio_control(void)
 {
 	int ret;
@@ -1254,7 +1312,7 @@ int update_mac_from_efuse(void)
 	char mac_int[32] = {0};
 	char mac_char[32] = {0};
 
-	len = sunxi_efuse_read(EFUSE_IPTV_MAC, mac_int);
+	sunxi_efuse_read(EFUSE_IPTV_MAC, mac_int,&len);
 	if (len <= 0)
 	{
 		printf("read mac from efuse failed\n");

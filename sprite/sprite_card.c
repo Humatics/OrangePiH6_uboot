@@ -169,7 +169,7 @@ int sprite_card_fetch_mbr(void  *img_mbr)
 	{
 		return -1;
 	}
-	debug("try to read item dl map\n");
+	debug("try to read item mbr\n");
 	if(!Img_ReadItem(imghd, imgitemhd, img_mbr, sizeof(sunxi_mbr_t) * mbr_num))
 	{
 		printf("sunxi sprite error : read mbr failed\n");
@@ -713,6 +713,10 @@ int sunxi_sprite_deal_part(sunxi_download_info *dl_map)
     for(part_info = dl_map->one_part_info, i = 0; i < dl_map->download_count; i++, part_info++)
     {
     	tick_printf("begin to download part %s\n", part_info->name);
+#ifdef DISABLE_SUNXI_MBR
+		//decrease mbr size
+		part_info->addrlo = part_info->addrlo - (sizeof(sunxi_mbr_t)/512);
+#endif
         //if download main partition finish
 #ifdef CONFIG_BACKUP_PARTITION
         if(part_info->addrlo >= backup_flag_addr && !set_work)
@@ -1050,16 +1054,25 @@ int card_download_uboot(uint length, void *buffer)
 {
 	int ret;
 
+#ifdef CONFIG_MMC_BOOT_START
+	ret = sunxi_sprite_mmc_bootp_phywrite(UBOOT_START_SECTOR_IN_SDMMC, length/512, buffer);
+	if (!ret)
+	{
+		return -1;
+	}
+#else
 	ret = sunxi_sprite_phywrite(UBOOT_START_SECTOR_IN_SDMMC, length/512, buffer);
 	if(!ret)
 	{
 		return -1;
 	}
+
 	ret = sunxi_sprite_phywrite(UBOOT_BACKUP_START_SECTOR_IN_SDMMC, length/512, buffer);
 	if(!ret)
 	{
 		return -1;
 	}
+#endif
 
 	return 0;
 }
@@ -1097,13 +1110,21 @@ int card_download_boot0(uint length, void *buffer, uint storage_type)
 	{
 		printf("card2 download boot0 \n");
 		//write boot0 bankup copy firstly
+#ifdef CONFIG_MMC_BOOT_START
+		ret = sunxi_sprite_mmc_bootp_phywrite(BOOT0_SDMMC_BACKUP_START_ADDR, length/512, buffer);
+#else
 		ret = sunxi_sprite_phywrite(BOOT0_SDMMC_BACKUP_START_ADDR, length/512, buffer);
+#endif
 		if(!ret)
 		{
 			printf("%s: write boot0 from %d fail\n", __func__, BOOT0_SDMMC_BACKUP_START_ADDR);
 			goto ERR_OUT;
 		}
+#ifdef CONFIG_MMC_BOOT_START
+		ret = sunxi_sprite_mmc_bootp_phywrite(BOOT0_SDMMC_START_ADDR, length/512, buffer);
+#else
 		ret = sunxi_sprite_phywrite(BOOT0_SDMMC_START_ADDR, length/512, buffer);
+#endif
 		if(!ret)
 		{
 			printf("%s: write boot0 from %d fail\n", __func__, BOOT0_SDMMC_START_ADDR);

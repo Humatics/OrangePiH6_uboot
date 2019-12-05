@@ -86,4 +86,32 @@ int  sunxi_md5_calc(u8 *dst_addr, u32 dst_len,
 int sunxi_create_rssk(u8 *rssk_buf, u32 rssk_byte);
 
 
+/*key_len: 16, 24, 32*/
+#define SS_METHOD_AES   0
+#define SS_SYM_OFFSET   31
+#define SS_MODE_OFFSET  8
+
+#define SS_KEY_SELECT_INPUT        (0)
+#define SS_KEY_SELECT_SSK          (1)
+#define SS_KEY_SELECT_HUK          (2)
+#define SS_KEY_SELECT_RSSK         (3)
+
+#define SS_AES_MODE_ECB         (0)
+#define SS_AES_MODE_CBC         (1)
+#define SS_AES_MODE_CTR         (2)
+#define SS_AES_MODE_CTS         (3)
+#define SS_AES_MODE_OFB         (4)
+#define SS_AES_MODE_CFB         (5)
+#define SS_AES_MODE_CBCMAC      (6)
+
+#define SS_AES_KEY_128BIT       (0)
+#define SS_AES_KEY_192BIT       (1)
+#define SS_AES_KEY_256BIT       (2)
+
+int sunxi_ss_aes_ecb_decrypt(u8* in, u32 in_len, u8* key, u32 key_len, u8* out, u32* out_len);
+int sunxi_ss_aes_ecb_encrypt(u8* in, u32 in_len, u8* key, u32 key_len, u8* out, u32* out_len);
+int sunxi_ss_aes_cbc_decrypt(u8* in, u32 in_len, u8* key, u32 key_len,
+								u8* iv, u32 iv_len, u8* out, u32* out_len);
+int sunxi_ss_aes_cbc_encrypt(u8* in, u32 in_len, u8* key, u32 key_len,
+								u8* iv, u32 iv_len, u8* out, u32* out_len);
 #endif    /*  #ifndef _SS_H_  */

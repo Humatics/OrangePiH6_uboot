@@ -77,7 +77,7 @@ static void announce_and_cleanup(int fake)
 {
 
 #ifdef CONFIG_ALLWINNER
-	//sunxi_board_prepare_kernel();
+	sunxi_board_prepare_kernel();
 #endif
 
 	printf("\nStarting kernel ...%s\n\n", fake ?
@@ -276,7 +276,12 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 	announce_and_cleanup(fake);
 
 	if (!fake)
-		kernel_entry(images->ft_addr);
+	{
+		if(sunxi_probe_secure_monitor())
+			arm_svc_run_os((ulong)kernel_entry, (ulong)(images->ft_addr),  1);
+		else
+			kernel_entry(images->ft_addr);
+	}
 #else
 	unsigned long machid = gd->bd->bi_arch_number;
 	char *s;
@@ -303,8 +308,12 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 		r2 = gd->bd->bi_boot_params;
 
 	if (!fake)
-		arm_svc_run_os((ulong)images->ep, r2, 1);
-		//kernel_entry(0, machid, r2);
+	{
+		if(sunxi_probe_secure_monitor())
+			arm_svc_run_os((ulong)kernel_entry, r2,  1);
+		else
+			kernel_entry(0, machid, r2);
+	}
 #endif
 }
 

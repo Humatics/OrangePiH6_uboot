@@ -247,9 +247,9 @@ static void show_block_marker(void)
 	} else
 #endif
 	{
-		if (((TftpBlock - 1) % 10) == 0)
+		if (((TftpBlock - 100) % 1000) == 0)
 			putc('#');
-		else if ((TftpBlock % (10 * HASHES_PER_LINE)) == 0)
+		else if ((TftpBlock % (1000 * HASHES_PER_LINE)) == 0)
 			puts("\n\t ");
 	}
 }
@@ -317,6 +317,11 @@ TftpSend(void)
 	uchar *xp;
 	int len = 0;
 	ushort *s;
+
+	/* FIXME: to fix tftp timeout. */
+#if defined(CONFIG_SUN8IW12P1) || defined(CONFIG_SUN8IW12P1_NOR)
+	udelay(5);
+#endif
 
 #ifdef CONFIG_MCAST_TFTP
 	/* Multicast TFTP.. non-MasterClients do not ACK data. */

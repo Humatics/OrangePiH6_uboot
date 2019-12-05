@@ -12,13 +12,135 @@
 
 #include "hdcp.h"
 #include "log.h"
-static void _EnableAvmute(hdmi_tx_dev_t *dev, u8 bit);
+
+void hdcp_rxdetect(hdmi_tx_dev_t *dev, u8 enable)
+{
+	LOG_TRACE1(enable);
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_RXDETECT_MASK, enable);
+}
+
+static void _DataEnablePolarity(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_VIDPOLCFG, A_VIDPOLCFG_DATAENPOL_MASK, bit);
+}
+
+void _DisableEncryption(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_HDCPCFG1, A_HDCPCFG1_ENCRYPTIONDISABLE_MASK, bit);
+}
+
+static void _BypassEncryption(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_BYPENCRYPTION_MASK, bit);
+}
+
+/*static void _HSyncPolarity(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_VIDPOLCFG, A_VIDPOLCFG_HSYNCPOL_MASK, bit);
+}
+
+
+static void _VSyncPolarity(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_VIDPOLCFG, A_VIDPOLCFG_VSYNCPOL_MASK, bit);
+}*/
+
+/*static void hdcp22_ovr_val_1p4(hdmi_tx_dev_t *dev)
+{
+	dev_write_mask(dev, (HDCP22REG_CTRL),
+		HDCP22REG_CTRL_HDCP22_OVR_VAL_MASK, 0);
+	dev_write_mask(dev, (HDCP22REG_CTRL),
+		HDCP22REG_CTRL_HDCP22_OVR_EN_MASK, 1);
+}*/
+
+void _setDeviceMode(hdmi_tx_dev_t *dev, video_mode_t mode)
+{
+	u8 set_mode;
+
+	LOG_TRACE1(mode);
+
+	set_mode = (mode == HDMI ? 1 : 0);  /* 1 - HDMI : 0 - DVI */
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_HDMIDVI_MASK, set_mode);
+}
+
+/*static void _EnableFeature11(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_EN11FEATURE_MASK, bit);
+}
+
+static void _RiCheck(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_SYNCRICHECK_MASK, bit);
+}*/
+
+/*static void _EnableI2cFastMode(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_I2CFASTMODE_MASK, bit);
+}
+
+static void _EnhancedLinkVerification(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_ELVENA_MASK, bit);
+}*/
+
+static void _EnableAvmute(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_AVMUTE_MASK, bit);
+}
+
+/*static void _UnencryptedVideoColor(hdmi_tx_dev_t *dev, u8 value)
+{
+	LOG_TRACE1(value);
+	dev_write_mask(dev, A_VIDPOLCFG, A_VIDPOLCFG_UNENCRYPTCONF_MASK, value);
+}*/
+
+static void _OessWindowSize(hdmi_tx_dev_t *dev, u8 value)
+{
+	LOG_TRACE1(value);
+	dev_write(dev, (A_OESSWCFG), value);
+}
+
+/*static void _EncodingPacketHeader(hdmi_tx_dev_t *dev, u8 bit)
+{
+	LOG_TRACE1(bit);
+	dev_write_mask(dev, A_HDCPCFG1, A_HDCPCFG1_PH2UPSHFTENC_MASK, bit);
+}*/
+
+int hdcp_initialize(hdmi_tx_dev_t *dev)
+{
+	LOG_TRACE();
+	i2cddc_fast_mode(dev, 0);
+	i2cddc_clk_config(dev, I2C_SFR_CLK,
+				I2C_MIN_SS_SCL_LOW_TIME,
+				I2C_MIN_SS_SCL_HIGH_TIME,
+				I2C_MIN_FS_SCL_LOW_TIME,
+				I2C_MIN_FS_SCL_HIGH_TIME);
+	_OessWindowSize(dev, 64);
+	fc_video_hdcp_keepout(dev, true);
+	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_HDMIDVI_MASK,
+				(dev->snps_hdmi_ctrl.hdmi_on == HDMI) ? 1 : 0);
+	/*_HSyncPolarity(dev, (dev->snps_hdmi_ctrl.hspol > 0) ? 1 : 0);
+	_VSyncPolarity(dev, (dev->snps_hdmi_ctrl.vspol > 0) ? 1 : 0);*/
+	_BypassEncryption(dev, TRUE);
+	hdcp_rxdetect(dev, 0);
+	_DataEnablePolarity(dev, 0);
+	_DisableEncryption(dev, 1);
+
+	return TRUE;
+}
 
 #if defined(__LINUX_PLAT__)
-
-
 #define KSV_LEN  5 /* KSV value size */
-
 
 /* HDCP Interrupt fields */
 #define INT_KSV_ACCESS    (A_APIINTSTAT_KSVACCESSINT_MASK)
@@ -62,56 +184,6 @@ static int hdcp_array_div(hdmi_tx_dev_t *dev, u8 *r, const u8 *D,
 						const u8 *d, size_t n);
 
 
-
-void _setDeviceMode(hdmi_tx_dev_t *dev, video_mode_t mode)
-{
-	u8 set_mode;
-
-	LOG_TRACE1(mode);
-
-	set_mode = (mode == HDMI ? 1 : 0);  /* 1 - HDMI : 0 - DVI */
-	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_HDMIDVI_MASK, set_mode);
-}
-
-static void _EnableFeature11(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_EN11FEATURE_MASK, bit);
-}
-
-void hdcp_rxdetect(hdmi_tx_dev_t *dev, u8 enable)
-{
-	LOG_TRACE1(enable);
-	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_RXDETECT_MASK, enable);
-}
-
-
-
-static void _RiCheck(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_SYNCRICHECK_MASK, bit);
-}
-
-static void _BypassEncryption(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_BYPENCRYPTION_MASK, bit);
-}
-
-static void _EnableI2cFastMode(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_I2CFASTMODE_MASK, bit);
-}
-
-static void _EnhancedLinkVerification(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_ELVENA_MASK, bit);
-}
-
-
 void hdcp_sw_reset(hdmi_tx_dev_t *dev)
 {
 	LOG_TRACE();
@@ -119,19 +191,6 @@ void hdcp_sw_reset(hdmi_tx_dev_t *dev)
 	and auto cleared to 1 in the following cycle */
 	dev_write_mask(dev, A_HDCPCFG1, A_HDCPCFG1_SWRESET_MASK, 0);
 }
-
-void _DisableEncryption(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_HDCPCFG1, A_HDCPCFG1_ENCRYPTIONDISABLE_MASK, bit);
-}
-
-static void _EncodingPacketHeader(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_HDCPCFG1, A_HDCPCFG1_PH2UPSHFTENC_MASK, bit);
-}
-
 
 static void _InterruptClear(hdmi_tx_dev_t *dev, u8 value)
 {
@@ -152,38 +211,6 @@ static u8 _InterruptMaskStatus(hdmi_tx_dev_t *dev)
 {
 	return dev_read(dev, A_APIINTMSK);
 }
-
-static void _HSyncPolarity(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_VIDPOLCFG, A_VIDPOLCFG_HSYNCPOL_MASK, bit);
-}
-
-
-static void _VSyncPolarity(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_VIDPOLCFG, A_VIDPOLCFG_VSYNCPOL_MASK, bit);
-}
-
-static void _DataEnablePolarity(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_VIDPOLCFG, A_VIDPOLCFG_DATAENPOL_MASK, bit);
-}
-
-static void _UnencryptedVideoColor(hdmi_tx_dev_t *dev, u8 value)
-{
-	LOG_TRACE1(value);
-	dev_write_mask(dev, A_VIDPOLCFG, A_VIDPOLCFG_UNENCRYPTCONF_MASK, value);
-}
-
-static void _OessWindowSize(hdmi_tx_dev_t *dev, u8 value)
-{
-	LOG_TRACE1(value);
-	dev_write(dev, (A_OESSWCFG), value);
-}
-
 
 static void _MemoryAccessRequest(hdmi_tx_dev_t *dev, u8 bit)
 {
@@ -282,14 +309,6 @@ static u8 _hdcp_2p2_authentication(hdmi_tx_dev_t *dev)
 	“HDCP 2.2 Authentication” on page 228. */
 	/* Skip the remaining steps as they are related to HDMI 1.4. */
 	return TRUE;
-}
-
-static void hdcp22_ovr_val_1p4(hdmi_tx_dev_t *dev)
-{
-	dev_write_mask(dev, (HDCP22REG_CTRL),
-		HDCP22REG_CTRL_HDCP22_OVR_VAL_MASK, 0);
-	dev_write_mask(dev, (HDCP22REG_CTRL),
-		HDCP22REG_CTRL_HDCP22_OVR_EN_MASK, 1);
 }
 
 void hdcp_params_reset(hdmi_tx_dev_t *dev, hdcpParams_t *params)
@@ -914,14 +933,6 @@ int hdcp_verify_dsa(hdmi_tx_dev_t *dev, const u8 *M, size_t n,
 		return FALSE;
 	return (hdcp_array_cmp(dev, v, r1, sizeof(v)) == 0);
 }
-int hdcp_initialize(hdmi_tx_dev_t *dev)
-{
-	LOG_TRACE();
-	hdcp_rxdetect(dev, 0);
-	_DataEnablePolarity(dev, dev->snps_hdmi_ctrl.data_enable_polarity);
-	_DisableEncryption(dev, 1);
-	return TRUE;
-}
 
 void hdcp_1p4_configure(hdmi_tx_dev_t *dev, hdcpParams_t *hdcp)
 {
@@ -1269,12 +1280,6 @@ int hdcp_interrupt_clear(hdmi_tx_dev_t *dev, u8 value)
 	return TRUE;
 }
 #endif
-static void _EnableAvmute(hdmi_tx_dev_t *dev, u8 bit)
-{
-	LOG_TRACE1(bit);
-	dev_write_mask(dev, A_HDCPCFG0, A_HDCPCFG0_AVMUTE_MASK, bit);
-}
-
 
 void hdcp_av_mute(hdmi_tx_dev_t *dev, int enable)
 {
@@ -1289,4 +1294,3 @@ u8 hdcp_av_mute_state(hdmi_tx_dev_t *dev)
 	return dev_read_mask(dev, A_HDCPCFG0, A_HDCPCFG0_AVMUTE_MASK);
 
 }
-

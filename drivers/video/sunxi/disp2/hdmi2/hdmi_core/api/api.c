@@ -113,6 +113,8 @@ static void api_set_hdmi_ctrl(hdmi_tx_dev_t *dev, videoParams_t *video)
 	tx_ctrl->pixel_clock = videoParams_GetPixelClock(dev, video);
 	tx_ctrl->color_resolution = video->mColorResolution;
 	tx_ctrl->pixel_repetition = video->mDtd.mPixelRepetitionInput;
+	tx_ctrl->hspol = video->mDtd.mHSyncPolarity;
+	tx_ctrl->vspol = video->mDtd.mVSyncPolarity;
 }
 
 static void api_avmute(hdmi_tx_dev_t *dev, int enable)
@@ -240,12 +242,12 @@ static int api_Configure(videoParams_t *video,
 
 	api_set_hdmi_ctrl(dev, video);
 
-	i2cddc_fast_mode(dev, 0);
+	/*i2cddc_fast_mode(dev, 0);
 	i2cddc_clk_config(dev, I2C_SFR_CLK,
 			       I2C_MIN_SS_SCL_LOW_TIME,
 			       I2C_MIN_SS_SCL_HIGH_TIME,
 			       I2C_MIN_FS_SCL_LOW_TIME,
-			       I2C_MIN_FS_SCL_HIGH_TIME);
+			       I2C_MIN_FS_SCL_HIGH_TIME);*/
 	/*be used to calculate tmds clk*/
 	HDMI_INFO_MSG("video pixel clock=%d\n", dev->snps_hdmi_ctrl.pixel_clock);
 	/*for auto scrambling if tmds_clk > 3.4Gbps*/
@@ -329,8 +331,8 @@ static int api_Configure(videoParams_t *video,
 
 	/* TODO:This should be called at HPD event */
 	/* HDCP is PHY independent */
-	/*if (hdcp_initialize(dev) != true)
-		HDMI_INFO_MSG("ERROR:Could not initialize HDCP\n");*/
+	if (hdcp_initialize(dev) != true)
+		HDMI_INFO_MSG("ERROR:Could not initialize HDCP\n");
 #if defined(__LINUX_PLAT__)
 	if (dev->snps_hdmi_ctrl.hdcp_on) {
 		snps_sleep(20000);

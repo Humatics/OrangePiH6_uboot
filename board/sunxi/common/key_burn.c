@@ -268,7 +268,7 @@ int do_efuse_entry(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	{
 		/*read RO + RW + PRIVATE + NACCESS*/
 		case '1':
-			ret = sunxi_efuse_read(efuse_name,g_tempbuffer);
+			sunxi_efuse_read(efuse_name,g_tempbuffer,&ret);
 			if((ret > 0) && (ret <= EFUSE_TEST_BUF_LEN))
 			{
 				printf("read efuse key [%s][len:%dByte] successed\n", efuse_name,ret);

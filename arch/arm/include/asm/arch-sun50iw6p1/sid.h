@@ -42,6 +42,9 @@
 #define SID_SECURE_MODE         (SUNXI_SID_BASE + 0xA0)
 #define SID_OP_LOCK  (0xAC)
 
+#define SID_JTAG_ATTR_ADDR             (0x48)
+#define SID_JTAG_LOCK_PERM             (0x100)
+
 #define EFUSE_CHIPD             (0x00)/* 128 bits */
 #define EFUSE_BROM_CONFIG    	(0x10)/* 16 bits config, 16 bits try */
 #define EFUSE_THERMAL_SENSOR    (0x14)/* 64 bits */

@@ -65,6 +65,7 @@ extern int board_display_show_until_lcd_open(int display_source);
 extern int board_display_show(int display_source);
 extern int board_display_framebuffer_set(int width, int height, int bitcount, void *buffer);
 extern int board_display_framebuffer_change(void *buffer);
+extern void board_display_set_alpha_mode(int mode);
 extern int board_display_device_open(void);
 extern int borad_display_get_screen_width(void);
 extern int borad_display_get_screen_height(void);
@@ -84,6 +85,11 @@ extern void usb_detect_for_charge(int detect_time);
 extern int sunxi_flash_handle_init(void);
 
 extern int sunxi_bmp_display(char *name);
+#ifdef CONFIG_SUN8IW12P1_NOR
+extern int read_bmp_to_kernel(char *partition_name);
+#endif
+
+
 extern int sunxi_bmp_load(char *name);
 
 extern int sunxi_load_jpeg(const char *filename);
@@ -138,6 +144,8 @@ extern char* board_hardware_info(void);
 extern int get_boot_work_mode(void);
 extern int get_boot_storage_type_ext(void);
 extern int get_boot_storage_type(void);
+extern void set_boot_storage_type(int);
+
 extern u32 get_boot_dram_para_addr(void);
 extern u32 get_boot_dram_para_size(void);
 extern u32 get_boot_dram_update_flag(void);
@@ -176,6 +184,9 @@ void sunxi_dump(void *addr, unsigned int size);
 extern uint sunxi_generate_checksum(void *buffer, uint length, uint src_sum);
 extern int sunxi_verify_checksum(void *buffer, uint length, uint src_sum);
 extern void sunxi_auto_sel_pio_mode(void);
+#ifdef CONFIG_ARCH_SUN50IW6P1
+int verify_init(void);
+#endif
 
 #define BIT(x)				(1<<(x))
 #define sunxi_set_bit(addr, val) writel((readl(addr) | val), addr)

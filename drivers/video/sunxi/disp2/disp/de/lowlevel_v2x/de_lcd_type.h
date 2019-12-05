@@ -63,6 +63,16 @@ union tcon0_frm_tab_reg_t {
 	} bits;
 };
 
+union tcon0_3d_fifo_reg_t {
+	u32 dwval;
+	struct {
+		u32 fifo_3d_setting:2;
+		u32 res0:2;
+		u32 fifo_3d_half_line_size:11;
+		u32 res1:16;
+		u32 fifo_3d_bist_en:1;
+	} bits;
+};
 union tcon0_ctl_reg_t {
 	u32 dwval;
 	struct {
@@ -135,7 +145,8 @@ union tcon0_basic3_reg_t {
 union tcon0_hv_if_reg_t {
 	u32 dwval;
 	struct {
-		u32 res0:20;
+		u32 res0:19;
+		u32 ccir_csc_dis:1;
 		u32 syuv_fdly:2;
 		u32 syuv_seq:2;
 		u32 srgb_seq:4;
@@ -521,6 +532,36 @@ union tcon_mux_ctl_reg_t {
 	} bits;
 };
 
+union tcon_sync_ctl_reg_t {
+	u32 dwval;
+	struct {
+		u32 ctrl_sync_mode:1;
+		u32 res0:3;
+		u32 master_slave:1;
+		u32 res1:3;
+		u32 dsi_num:1;
+		u32 res2:23;
+	} bits;
+};
+
+union tcon_sync_pos_reg_t {
+	u32 dwval;
+	struct {
+		u32 sync_line_num:12;
+		u32 res0:4;
+		u32 sync_pixel_num:12;
+		u32 res1:4;
+	} bits;
+};
+
+union tcon_slave_stop_reg_t {
+	u32 dwval;
+	struct {
+		u32 stop_val:8;
+		u32 res0:24;
+	} bits;
+};
+
 union tcon0_lvds_ana_reg_t {
 	u32 dwval;
 	struct {
@@ -614,7 +655,9 @@ union tcon_tv_setup_reg_t {
 		u32 tv0_out:1;
 		u32 res1:3;
 		u32 tv1_out:1;
-		u32 res0:19;
+		u32 res4:2;
+		u32 rgb0_src_sel:1;
+		u32 res0:16;
 	} bits;
 };
 
@@ -642,10 +685,20 @@ union tcon_clk_gate_reg_t {
 	} bits;
 };
 
+union dsi_src_select_reg_t {
+	u32 dwval;
+	struct {
+		u32 dsi0_src_sel:1;
+		u32 res0:3;
+		u32 dsi1_src_sel:1;
+		u32 res1:27;
+	} bits;
+};
+
 struct __de_lcd_top_dev_t {
 	/* 0x00 - 0x0c */
 	union tcon_tv_setup_reg_t tcon_tv_setup;
-	union tcon_reservd_reg_t tcon_reg_0004;
+	union dsi_src_select_reg_t dsi_src_select;
 	union tcon_reservd_reg_t tcon_reg_0008;
 	union tcon_reservd_reg_t tcon_reg_000c;
 	/* 0x10 - 0x1c */
@@ -658,6 +711,18 @@ struct __de_lcd_top_dev_t {
 };
 /* edit by lrx---end */
 #endif
+
+enum cpu_mode {
+	MODE_18BIT = 0,
+	MODE0_16BIT = 2,
+	MODE1_16BIT = 4,
+	MODE2_16BIT = 6,
+	MODE3_16BIT = 8,
+	MODE_9BIT = 10,
+	MODE_8BIT_256K = 12,
+	MODE_8BIT_65K = 14,
+	MODE_DSI = 1,
+};
 
 struct __de_lcd_dev_t {
 	/* 0x00 - 0x0c */
@@ -679,7 +744,7 @@ struct __de_lcd_dev_t {
 	union tcon0_frm_tab_reg_t tcon0_frm_tbl_1;
 	union tcon0_frm_tab_reg_t tcon0_frm_tbl_2;
 	union tcon0_frm_tab_reg_t tcon0_frm_tbl_3;
-	union tcon_reservd_reg_t tcon_reg03c;
+	union tcon0_3d_fifo_reg_t tcon0_3d_fifo;
 	/* 0x40 - 0x4c */
 	union tcon0_ctl_reg_t tcon0_ctl;
 	union tcon0_dclk_reg_t tcon0_dclk;
@@ -774,7 +839,10 @@ struct __de_lcd_dev_t {
 	union tcon0_lvds_ana_reg_t tcon0_lvds_ana[2];
 	union tcon_reservd_reg_t tcon_reg228[2];
 	/* 0x230 - 0x2fc */
-	union tcon_reservd_reg_t tcon_reg230[52];
+	union tcon_sync_ctl_reg_t tcon_sync_ctl;
+	union tcon_sync_pos_reg_t tcon_sync_pos;
+	union tcon_slave_stop_reg_t tcon_slave_stop;
+	union tcon_reservd_reg_t tcon_reg23c[49];
 	/* 0x300 - 0x30c */
 	union tcon1_fill_ctl_reg_t tcon_fill_ctl;
 	union tcon1_fill_begin_reg_t tcon_fill_start0;

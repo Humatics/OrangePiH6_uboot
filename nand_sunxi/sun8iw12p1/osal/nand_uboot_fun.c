@@ -492,10 +492,10 @@ int NAND_GetParam_store(void *buffer, uint length)
 	//boot_nand_para_t * t;
 	if(!flash_scaned)
 	{
-		NAND_Print("sunxi flash: force flash init to begin hardware scanning\n");
+		NAND_Print("force flash init to begin hardware scanning\n");
 		NAND_PhyInit();
 		NAND_PhyExit();
-		NAND_Print("sunxi flash: hardware scan finish\n");
+		NAND_Print("hardware scan finish\n");
 	}
 
 	nand_get_param_for_uboottail((void *)nand_para_store);

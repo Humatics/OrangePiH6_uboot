@@ -77,14 +77,14 @@ static int mmc_update_clk(struct sunxi_mmc_host* mmchost)
 {
 	struct mmc_reg_v4p1 *reg = (struct mmc_reg_v4p1 *)mmchost->reg;
 	unsigned int cmd;
-	unsigned timeout = 1000;
+	unsigned timeout = 100000;
 
 	writel(readl(&reg->clkcr)|(0x1<<31), &reg->clkcr);
 
 	cmd = (1U << 31) | (1 << 21) | (1 << 13);
   	writel(cmd, &reg->cmd);
 	while((readl(&reg->cmd)&0x80000000) && --timeout){
-		__msdelay(1);
+		__usdelay(1);
 	}
 	if (!timeout){
 		MMCINFO("mmc %d update clk failed\n",mmchost->mmc_no);
@@ -550,7 +550,7 @@ static void mmc_ddr_mode_onoff(struct mmc *mmc, int on)
 		MMCDBG("set %d rgctrl 0x%x to disable ddr mode\n", mmchost->mmc_no, readl(&reg->gctrl));
 	}
 
-    /*  enable ccu clock */
+    /*  enable ccu clock */ 
     writel(readl(mmchost->mclkbase)|(1<<31), mmchost->mclkbase);
     MMCDBG("enable mmc %d mclk %x\n", mmchost->mmc_no, readl(mmchost->mclkbase));
 }
@@ -799,13 +799,13 @@ static int mmc_trans_data_by_cpu(struct mmc *mmc, struct mmc_data *data)
 	unsigned i;
 	unsigned byte_cnt = data->blocksize * data->blocks;
 	unsigned *buff;
-	unsigned timeout = 1000;
+	unsigned timeout = 100000;
 
 	if (data->flags & MMC_DATA_READ) {
 		buff = (unsigned int *)data->dest;
 		for (i=0; i<(byte_cnt>>2); i++) {
 			while(--timeout && (readl(&reg->status)&(1 << 2))){
-				__msdelay(1);
+				__usdelay(1);
 			}
 			if (timeout <= 0)
 				goto out;
@@ -816,7 +816,7 @@ static int mmc_trans_data_by_cpu(struct mmc *mmc, struct mmc_data *data)
 		buff = (unsigned int *)data->src;
 		for (i=0; i<(byte_cnt>>2); i++) {
 			while(--timeout && (readl(&reg->status)&(1 << 3))){
-				__msdelay(1);
+				__usdelay(1);
 			}
 			if (timeout <= 0)
 				goto out;

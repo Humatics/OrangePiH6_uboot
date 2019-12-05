@@ -880,8 +880,8 @@ static int __sunxi_usb_efex_op_cmd(u8 *cmd_buffer)
 						uint value;
 
 						value = *(uint *)fes_old_data->addr;
-#endif
 						sunxi_usb_dbg("send id 0x%x, addr 0x%x, length 0x%x\n", value, fes_old_data->addr, fes_old_data->len);
+#endif
 						trans_data.act_send_buffer   = (void*)(ulong)fes_old_data->addr;	//设置发送地址
 						trans_data.send_size         = fes_old_data->len;	//设置发送长度
 						trans_data.last_err          = 0;
@@ -893,8 +893,9 @@ static int __sunxi_usb_efex_op_cmd(u8 *cmd_buffer)
 						uint value;
 
 						value = *(uint *)fes_old_data->addr;
-#endif
+
 						sunxi_usb_dbg("receive id 0x%x, addr 0x%x, length 0x%x\n", value, fes_old_data->addr, fes_old_data->len);
+#endif
 
 						trans_data.type = SUNXI_EFEX_DRAM_TAG;		//写到dram的数据
 						trans_data.act_recv_buffer   = (void*)(ulong)fes_old_data->addr;	//设置接收地址
@@ -1397,7 +1398,11 @@ static void dram_data_recv_finish(uint data_type)
 			{       //烧录mbr
 				printf("SUNXI_EFEX_MBR_TAG\n");
 				printf("mbr size = 0x%x\n", trans_data.to_be_recved_size);
+#ifndef DISABLE_SUNXI_MBR
 				trans_data.last_err = sunxi_sprite_download_mbr((void *)trans_data.base_recv_buffer, trans_data.to_be_recved_size);
+#else
+				trans_data.last_err = 0;
+#endif
 #ifdef CONFIG_BACKUP_PARTITION
 				mbr_info = *(sunxi_mbr_t *)trans_data.base_recv_buffer;
 #endif
@@ -1885,6 +1890,9 @@ static int sunxi_efex_state_loop(void  *buffer)
                     }
 
 #else
+#ifdef DISABLE_SUNXI_MBR
+					trans_data.flash_start -= SUNXI_MBR_SIZE / 512;
+#endif
                     if(!sunxi_sprite_write(trans_data.flash_start, trans_data.flash_sectors, (void *)trans_data.act_recv_buffer))
                     {
                         printf("sunxi usb efex err: write flash from 0x%x, sectors 0x%x failed\n", trans_data.flash_start, trans_data.flash_sectors);

@@ -136,6 +136,7 @@ static void __rsa_padding(u8 *dst_buf, u8 *src_buf, u32 data_len, u32 group_len)
 
 void sunxi_ss_open(void)
 {
+	//config all clk resource for ce,reset hw.
 	ss_open();
 }
 
@@ -417,8 +418,202 @@ int sunxi_create_rssk(u8 *rssk_buf, u32 rssk_byte)
 
 }
 
+//new add begin
+//do_work:
+static uint32_t ss_do_work(task_queue * ptask)
+{
+	uint32_t task_id = ptask->task_id;
+	uint32_t alg_type = ptask->common_ctl&0xff;
+
+	ss_set_drq((uint32_t)ptask);
+	ss_irq_enable(task_id);
+	ss_ctrl_start(alg_type);
+	ss_wait_finish(task_id);
+	ss_pending_clear(task_id);
+	ss_ctrl_stop();
+	ss_irq_disable(task_id);
+	if(ss_check_err())
+	{
+		printf("SS %s fail 0x%x\n",__func__,ss_check_err());
+		return -1;
+	}
+	return 0;
+}
+
+#define ECB_D_MSK 1
+#define ECB_E_MSK 2
+#define CBC_D_MSK 4
+#define CBC_E_MSK 8
+#define IV_MAX_BYTES 64
+
+static inline unsigned int get_com_ctl_msk(unsigned int msk)
+{
+	switch (msk)
+	{
+		case ECB_E_MSK:
+		case CBC_E_MSK:
+			return (1U << SS_SYM_OFFSET) | SS_METHOD_AES;
+		case ECB_D_MSK:
+		case CBC_D_MSK:
+			return ((1U << SS_SYM_OFFSET) | (1 << SS_MODE_OFFSET) | SS_METHOD_AES);
+	}
+	return ((1U << SS_SYM_OFFSET) | (1 << SS_MODE_OFFSET) | SS_METHOD_AES);/*dlt use decrypt*/
+}
+
+static inline unsigned int key_len_map(int key_len)
+{
+	if (key_len == 16)
+		return SS_AES_KEY_128BIT;
+	else if (key_len == 32)
+		return SS_AES_KEY_256BIT;
+	return SS_AES_KEY_192BIT;
+}
+
+static unsigned int get_sym_ctl_msk(unsigned int msk, int key_len)
+{
+	unsigned int kl = key_len_map(key_len);
+
+	switch (msk)
+	{
+		case CBC_E_MSK:
+		case CBC_D_MSK:
+			return (SS_AES_MODE_CBC << SS_MODE_OFFSET) | kl;
+		case ECB_E_MSK:
+		case ECB_D_MSK:
+			return (SS_AES_MODE_ECB << SS_MODE_OFFSET) | kl;
+	}
+
+	printf("%s unknown issue\n", __func__);
+	return (SS_AES_MODE_ECB << SS_MODE_OFFSET);/*aes128ecb*/
+}
+
+/*pass ball to caller which consider data align issue, not use malloc, because it is just boot*/
+/*flow: in uboot stage, there is no complex shareability control between normal,secure world,
+*multitask,para flow select,etc .for H6 secure boot design, Now the cpu is in normal world,so use normal regs of ce
+*config task descritor
+*flag_issym,sub_sym(aes,des,??),aes_sub_mode(ecb,cbc,ofb,cfb,xts??),key_len(128,192,256??)
+*key type(hw or sw),key address(if hw, it is string to descripte hw key info),key_len, iv_addr,
+*iv_len(if set to 0,no iv), out addr.
+*cache flush(all data input from mbus memory field)
+*do work func(set der, interrupt enable ,check err or compeletion...)
+*cache invalidate(out)
+*/
+#define DCACHE_ALIGN_LEN 64
+static int ss_aes_element(u8* in, u32 in_len, u8* key, u32 key_len,
+	u8* iv, u32 iv_len, u8* out, u32* out_len, u32 msk_i)
+{
+
+	u8 *src_align;
+	unsigned long dst_align;
+	task_queue task0 __aligned(64) = {0};
+
+	uint32_t size_4B;
+
+	ALLOC_CACHE_ALIGN_BUFFER(uint8_t, key_map, 64);
+	ALLOC_CACHE_ALIGN_BUFFER(uint8_t, iv_map, IV_MAX_BYTES);
+
+	src_align = in;
+	dst_align = (unsigned long)out -  ((unsigned long)out % 64);
+
+	if (((u32)src_align % 4) || ((u32)out % 4))
+	{
+		printf("must pass 4B aligned addr\n");
+		return -1;
+	}
+	ss_open(); /*it is optional, rst hw in case of dirty state*/
+	memset(key_map, 0, IV_MAX_BYTES);
+
+	/*extend hw key later if necessary use builtin rule, such as bonding name. i.e.: SUNXI_RSSK*/
+	memcpy(key_map, key, key_len);/*key must be non-null because of arg check*/
+
+	if(iv)
+		memcpy(iv_map, iv, iv_len);
+
+	memset((void *)&task0, 0x00, sizeof(task_queue));
+	size_4B = (ALIGN(in_len, 4)) >> 2;
+
+	task0.task_id = 0;
+	task0.common_ctl = get_com_ctl_msk(msk_i);
+	task0.symmetric_ctl = get_sym_ctl_msk(msk_i, key_len);
+	task0.key_descriptor = (uint32_t)key_map;
+	task0.iv_descriptor = iv ? (uint32_t)iv_map : 0;
+	task0.data_len = in_len;
+	task0.source[0].addr= (uint32_t)src_align;
+	task0.source[0].length = size_4B;
+	task0.destination[0].addr= (uint32_t)out;
+	task0.destination[0].length = size_4B;
+	task0.next_descriptor = 0;
+
+	printf("task0.common_ctl is 0x%x, task0.symmetric_ctl is 0x%x", task0.common_ctl, task0.symmetric_ctl);
+	//flush&clean cache
+	flush_cache((unsigned long)iv_map, sizeof(iv_map));
+	flush_cache((unsigned long)key_map, sizeof(key_map));
+	flush_cache((unsigned long)src_align, in_len);
+	flush_cache((unsigned long)out, in_len);
+	flush_cache((unsigned long)&task0, sizeof(task0));
+
+	//start work
+	if(ss_do_work(&task0))
+	{
+		printf("ce hardware err!!\n");
+		if (out_len)
+		*out_len = 0;
+		return -1;
+	}
+	//invlaid l1 cache
+	invalidate_dcache_range((unsigned long)dst_align, (unsigned long)dst_align + in_len + DCACHE_ALIGN_LEN);
+
+	if (out_len)
+	*out_len = in_len;
+	return 0;
+}
+
+int sunxi_ss_aes_ecb_decrypt(u8* in, u32 in_len, u8* key, u32 key_len, u8* out, u32* out_len)
+{
+	if (!(in && key && in_len && out && key_len))
+	{
+		printf("%s arg\n", __func__);
+		return -1;
+	}
+
+	return ss_aes_element(in, in_len, key, key_len, NULL, 0, out,out_len, ECB_D_MSK);
+}
+
+int sunxi_ss_aes_ecb_encrypt(u8* in, u32 in_len, u8* key, u32 key_len, u8* out, u32* out_len)
+{
+	if (!(in && key && in_len && out && key_len))
+	{
+		printf("%s arg\n", __func__);
+		return -1;
+	}
+	return ss_aes_element(in, in_len, key, key_len, NULL, 0, out, out_len, ECB_E_MSK);
+}
+
+int sunxi_ss_aes_cbc_decrypt(u8* in, u32 in_len, u8* key, u32 key_len,
+	u8* iv, u32 iv_len, u8* out, u32* out_len)
+{
+	if (!(in && key && in_len && out && key_len && iv && iv_len))
+	{
+		printf("%s arg\n", __func__);
+		return -1;
+	}
+	return ss_aes_element(in, in_len, key, key_len, iv, iv_len, out,out_len, CBC_D_MSK);
+}
+
+int sunxi_ss_aes_cbc_encrypt(u8* in, u32 in_len, u8* key, u32 key_len,
+	u8* iv, u32 iv_len, u8* out, u32* out_len)
+{
+	if (!(in && key && in_len && out && key_len && iv && iv_len))
+	{
+		printf("%s arg\n", __func__);
+		return -1;
+	}
+	return ss_aes_element(in, in_len, key, key_len, iv, iv_len, out, out_len, CBC_E_MSK);
+}
+//new add end
 
 #ifdef SUNXI_HASH_TEST
+extern void sunxi_dump(void *addr, unsigned int size);
 int do_sha256_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	u8  hash[32] = {0};
@@ -446,3 +641,68 @@ U_BOOT_CMD(
 );
 #endif
 
+//#define SUNXI_AES_TST 1
+#ifdef SUNXI_AES_TST
+#define AES_STACK_DATA 1
+#ifndef AES_STACK_DATA
+u8 in[1024] __aligned(4) ;
+u8 out[1024] __aligned(4);
+u8 in_temp[1024] __aligned(4) ;
+#endif
+extern void sunxi_dump(void *addr, unsigned int size);
+int do_aes_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+
+	u32 out_len;
+	int ret;
+#ifdef AES_STACK_DATA
+	u8 in[1024] __aligned(4) ;
+	u8 out[1024] __aligned(4);
+	u8 in_temp[1024] __aligned(4) ;
+#endif
+	u8 key[32] = {0x1,0x2,0x3,0x4};
+	u8 iv[32] = {0x1,0x2,0x3,0x4};
+
+	tick_printf("sunxi aes test begin\n");
+	ret = sunxi_ss_aes_ecb_encrypt(in, sizeof(in), key, 16, out, &out_len);
+	printf("out_len is %d ret is %d\n", out_len, ret);
+	ret = sunxi_ss_aes_ecb_decrypt(out, sizeof(out), key, 16, in_temp, &out_len);
+	printf("out_len is %d ret is %d\n", out_len, ret);
+	if (memcmp(in_temp, in, sizeof(in)))
+	{
+		printf("sunxi_ss_aes_ecb_encrypt failed!!\n");
+		printf("in_temp data:\n");
+		sunxi_dump(in_temp, sizeof(in_temp));
+		printf("in data:\n");
+		sunxi_dump(in, sizeof(in));
+		return -1;
+	}
+
+	printf("sunxi_ss_aes_ecb_encrypt success!!\n");
+
+	ret = sunxi_ss_aes_cbc_encrypt(in, sizeof(in), key, 16, iv, 16, out, &out_len);
+	printf("cbc out_len is %d ret is %d\n", out_len, ret);
+	ret = sunxi_ss_aes_cbc_decrypt(out, sizeof(out), key, 16, iv, 16, in_temp, &out_len);
+	printf("cbc out_len is %d ret is %d\n", out_len, ret);
+	if (memcmp(in_temp, in, sizeof(in)))
+	{
+		printf("sunxi_ss_aes_ecb_encrypt failed!!\n");
+		printf("in_temp data:\n");
+		sunxi_dump(in_temp, sizeof(in_temp));
+		printf("in data:\n");
+		sunxi_dump(in, sizeof(in));
+		return -1;
+	}
+
+	printf("sunxi_ss_aes_cbc_encrypt success!!\n");
+	tick_printf("sunxi aes test end\n");
+	return 0;
+}
+
+U_BOOT_CMD(
+	aes_test, 3, 0, do_aes_test,
+	"do aes test",
+	"NULL"
+);
+#endif
+#undef SUNXI_AES_TST

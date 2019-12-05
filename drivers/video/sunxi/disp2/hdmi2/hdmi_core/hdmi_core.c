@@ -51,6 +51,8 @@ static struct disp_hdmi_mode hdmi_mode_tbl[] = {
 	{DISP_TV_MOD_3840_2160P_60HZ,     HDMI_VIC_3840x2160P60, },
 	{DISP_TV_MOD_4096_2160P_60HZ,     HDMI_VIC_4096x2160P60, },
 	{DISP_TV_MOD_2560_1440P_60HZ,     HDMI_VIC_2560x1440P60, },
+	{DISP_TV_MOD_1440_2560P_70HZ,     HDMI_VIC_1440x2560P70, },
+	{DISP_TV_MOD_1080_1920P_60HZ,     HDMI_VIC_1080x1920P60, },
 };
 
 static struct disp_hdmi_mode hdmi_mode_tbl_4_3[] = {

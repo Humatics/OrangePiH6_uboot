@@ -45,6 +45,8 @@
 #include <cputask.h>
 #include <fastboot.h>
 #include <sys_config_old.h>
+#include <sys_partition.h>
+#include <malloc.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -195,9 +197,47 @@ void update_bootargs(void)
 	//harware info
 	sprintf(tmpbuf," androidboot.hardware=%s",board_hardware_info());
 	strcat(cmdline,tmpbuf);
+	/* gpt support */
+	if(PART_TYPE_GPT == sunxi_partition_get_type())
+	{
+		sprintf(tmpbuf, " gpt=1");
+		strcat(cmdline, tmpbuf);
+	}
 
 	setenv("bootargs", cmdline);
 }
+
+#ifdef CONFIG_ARCH_SUN8IW12P1
+#define SIZEOF_FC_MAP 0x1000
+static int update_common_mix_date(void)
+{
+	char cmdline[512] = {0};
+	char tmpbuf[128] = {0};
+	char *buff;
+	char *align_addr;
+	char *str = getenv("bootargs");
+
+	buff =  malloc(SIZEOF_FC_MAP + 0x1000);
+	if (NULL == buff) {
+		printf("mix malloc buff failt\n");
+		return -1;
+	}
+	align_addr = (char *)((unsigned int)buff +
+			(0x1000U - (0xfffu & (unsigned int)buff)));
+
+	memcpy(align_addr, (void *)FC_ADDR, SIZEOF_FC_MAP);
+	memset((void *)FC_ADDR, 0, SIZEOF_FC_MAP);
+
+	strcpy(cmdline, str);
+	sprintf(tmpbuf, " mix=0x%x@0x%x", SIZEOF_FC_MAP, (uint)align_addr);
+
+	printf("cmdline:%s\n", tmpbuf);
+	strcat(cmdline, tmpbuf);
+	setenv("bootargs", cmdline);
+
+	return 0;
+}
+#endif
 
 int do_boota (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
@@ -260,6 +300,9 @@ int do_boota (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	memcpy((void*)SYS_CONFIG_MEMBASE, (void*)get_script_reloc_buf(SOC_SCRIPT),get_script_reloc_size(SOC_SCRIPT));
 #endif
 	update_bootargs();
+#ifdef CONFIG_ARCH_SUN8IW12P1
+	update_common_mix_date();
+#endif
 
 	//update fdt bootargs from env config
 	fdt_chosen(working_fdt);
