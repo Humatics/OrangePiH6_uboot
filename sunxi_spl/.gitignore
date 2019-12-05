@@ -13,6 +13,7 @@
 *.o
 *.depend
 *.cur
+*.lds
 cur.log
 include/generated/generic-asm-offsets.h
 #
