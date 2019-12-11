@@ -180,9 +180,9 @@ SRCTREE		:= $(CURDIR)
 TOPDIR		:= $(SRCTREE)
 LNDIR		:= $(OBJTREE)
 #SPLDIR		:= $(OBJTREE)/../../bootloader/uboot_2014_sunxi_spl/sunxi_spl
-#SPLBASE		:= $(OBJTREE)/../../bootloader/uboot_2014_sunxi_spl
+#SPLBASE	:= $(OBJTREE)/../../bootloader/uboot_2014_sunxi_spl
 SPLDIR		:= $(OBJTREE)/sunxi_spl
-SPLBASE		:= $(OBJTREE)
+SPLBASE		:= $(OBJTREE)/
 SPLSUPPORT  := $(shell if [ -d $(SPLBASE) ] ; then echo "y"; else echo "n"; fi)
 
 export	TOPDIR SRCTREE OBJTREE SPLTREE SPLDIR SPLBASE
@@ -874,13 +874,13 @@ u-boot.ldr.hex u-boot.ldr.srec: u-boot.ldr FORCE
 
 ifeq ($(SPLSUPPORT), y)
 boot0:
-	make -f spl_make boot0
+	make -f makefile.spl boot0
 fes:
-	make -f spl_make fes
+	make -f makefile.spl fes
 sboot:
-	make -f spl_make sboot
+	make -f makefile.spl sboot
 spl:
-	make -f spl_make spl
+	make -f makefile.spl spl
 endif
 
 #

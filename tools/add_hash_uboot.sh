@@ -36,6 +36,7 @@ do_common()
 		echo "not set commit log"
 	fi
 }
+
 while getopts f:m: OPTION
 do
     case $OPTION in

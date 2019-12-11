@@ -25,7 +25,7 @@
 
 _depend: .depend
 
-.depend: $(TOPDIR)/spl_make $(SPLDIR)/config.mk $(SRCS)
+.depend: $(TOPDIR)/makefile.spl $(SPLDIR)/config.mk $(SRCS)
 		@rm -f $@
 		@touch $@
 		@for f in $(SRCS); do \

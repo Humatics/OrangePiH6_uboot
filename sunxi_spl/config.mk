@@ -1,10 +1,7 @@
-
-
 # Load generated board configuration
 sinclude $(OBJTREE)/include/autoconf.mk
 
-#CROSS_COMPILE := $(TOPDIR)/../toolchain/gcc-arm/bin/arm-linux-gnueabihf-
-CROSS_COMPILE := $(TOPDIR)/../toolchain/gcc-linaro-aarch/gcc-linaro/bin/arm-linux-gnueabi-
+CROSS_COMPILE := $(TOPDIR)/../toolchain/gcc-linaro-4.9-2015.01-x86_64_aarch64-linux-gnu/gcc-linaro/bin/arm-linux-gnueabi-
 
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
