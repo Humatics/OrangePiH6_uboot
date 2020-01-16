@@ -873,14 +873,9 @@ u-boot.ldr.hex u-boot.ldr.srec: u-boot.ldr FORCE
 	$(call if_changed,objcopy)
 
 ifeq ($(SPLSUPPORT), y)
-boot0:
-	make -f makefile.spl boot0
-fes:
-	make -f makefile.spl fes
-sboot:
-	make -f makefile.spl sboot
-spl:
-	make -f makefile.spl spl
+boot0 spl:
+	$(MAKE)  -C  $(SPLDIR)/boot0 all
+	@$(TOPDIR)/tools/gen_check_sum $(SPLDIR)/boot0/boot0_sdcard.bin boot0_sdcard_$(CONFIG_SYS_BOARD).bin > /dev/null
 endif
 
 #

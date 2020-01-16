@@ -1,9 +1,6 @@
-
 ##
 ## Makefile for Sunxi Secure Boot
 ##
-
-
 
 include $(SPLDIR)/config.mk
 

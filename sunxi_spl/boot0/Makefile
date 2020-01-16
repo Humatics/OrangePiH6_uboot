@@ -29,11 +29,7 @@ BOOT0_LDSCRIPT := $(SPLBASE)/sunxi_spl/boot0/main/boot0.lds
 # We want the final binaries in this directory
 obj := $(SPLBASE)/sunxi_spl/boot0/
 
-BOOT0_HEAD  := sunxi_spl/boot0/boot0_head.o
-START       := sunxi_spl/boot0/boot0_entry.o
-
 LIBS-y += sunxi_spl/boot0/spl/libsource_spl.o
-#LIBS-y += sunxi_spl/boot0/main/libmain.o
 LIBS-y += sunxi_spl/boot0/libs/libgeneric.o
 LIBS-y += sunxi_spl/spl/lib/libgeneric.o
 LIBS-y += sunxi_spl/dram/$(SOC)/dram/libdram.o
@@ -56,8 +52,6 @@ endif
 
 __LIBS := $(subst $(obj),,$(LIBS))
 
-
-
 # Special flags for CPP when processing the linker script.
 # Pass the version down so we can handle backwards compatibility
 # on the fly.
@@ -72,21 +66,12 @@ ALL-$(CONFIG_STORAGE_MEDIA_MMC)  += $(obj)boot0_sdcard.bin
 
 all:	 $(ALL-y)
 
-$(obj)boot0_nand.bin:	$(obj)boot0_nand.axf $(obj)cur.log
-	@echo bootaddr is $(CONFIG_BOOT0_RUN_ADDR)
-	$(OBJCOPY) $(OBJCFLAGS) -O binary  $< $@
-	@$(SPLDIR)/../add_hash.sh -f $(SPLDIR)/boot0/boot0_nand.bin -m boot0
-
 $(obj)boot0_sdcard.bin:	$(obj)boot0_sdcard.axf $(obj)cur.log
 	$(OBJCOPY) $(OBJCFLAGS) -O binary  $< $@
 	@$(SPLDIR)/../add_hash.sh -f $(SPLDIR)/boot0/boot0_sdcard.bin -m boot0
 
 $(obj)boot0_sdcard.axf:  $(LIBS) $(LIBMMC) $(obj)boot0.lds
 	$(LD) $(LIBMMC) $(LIBS) $(PLATFORM_LIBGCC) $(LDFLAGS) $(LDFLAGS_boot0) -T$(obj)boot0.lds -o boot0_sdcard.axf -Map boot0_sdcard.map
-
-$(obj)boot0_spinor.bin:	$(obj)boot0_spinor.axf $(obj)cur.log
-	$(OBJCOPY) $(OBJCFLAGS) -O binary  $< $@
-	@$(SPLDIR)/../add_hash.sh -f $(SPLDIR)/boot0/boot0_spinor.bin -m boot0
 
 $(LIBS): depend
 	$(MAKE) -C $(SRCTREE)$(dir $(subst $(OBJTREE),,$@))

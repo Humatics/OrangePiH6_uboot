@@ -2,8 +2,6 @@ include $(SPLDIR)/config.mk
 include $(TOPDIR)/include/autoconf.mk
 include $(TOPDIR)/include/autoconf.mk.dep
 
-export ARCH CPU BOARD SOC
-
 MAKEFLAGS +=  --no-print-directory
 include $(SPLDIR)/config.mk
 
@@ -29,4 +27,3 @@ $(SPLDIR)/autoconf.mk: $(obj)include/config.h $(obj)include/configs/$(SOC).h
     $(CPP) $(ALL_CFLAGS) -DDO_DEPS_ONLY -dM $(SRCTREE)/include/common.h > $@.tmp && \
 	sed -n -f $(SRCTREE)/tools/scripts/define2mk.sed $@.tmp > $@; \
 	rm $@.tmp
-

@@ -37,6 +37,3 @@ SECTIONS
 	_end = .;
 	ASSERT(. <= (BOOT0ADDR + BOOT0SIZE), "boot0 image has exceeded its limit.")
 }
-
-
-

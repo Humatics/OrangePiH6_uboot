@@ -194,9 +194,3 @@ void set_dram_para(void *dram_addr , __u32 dram_size, __u32 boot_cpu)
 }
 
 extern const boot0_file_head_t  BT0_head;
-
-void cpu_init_s(void)
-{
-
-}
-
