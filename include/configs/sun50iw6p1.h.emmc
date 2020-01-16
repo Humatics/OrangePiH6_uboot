@@ -310,6 +310,7 @@
 	"root=/dev/mmcblk0p2\0" \
 	"load_addr=40000000\0" \
 	"fdt_addr=44000000\0" \
+	"debuglevel=2 " \
 	"kernel_addr=4007ffc0\0" \
 	"orangepi_mode=orangepi\0" \
 	"initrd_addr=44300000\0" \
@@ -354,6 +355,7 @@
 	"set_cmdline=" \
                 "setenv bootargs console=${console} ${optargs} " \
                 "earlyprintk=sunxi-uart,0x05000000 " \
+		"loglevel=${debuglevel} " \
                 "root=${root} ro " \
 		"rootwait\0" \
 	"mmcbootcmd=" \
