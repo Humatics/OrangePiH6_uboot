@@ -309,7 +309,7 @@
 	"console=ttyS0,115200\0" \
 	"root=/dev/mmcblk0p2\0" \
 	"load_addr=40000000\0" \
-	"debuglevel=2 " \
+	"debuglevel=2\0" \
 	"fdt_addr=44000000\0" \
 	"kernel_addr=4007ffc0\0" \
 	"orangepi_mode=orangepi\0" \
